@@ -77,9 +77,11 @@ const G = {
   /* Online (PeerJS) */
   peer:       null,
   conn:       null,
+  spectators:  [],     // array of spectator connections
   roomCode:   null,
   isHost:     false,
   onlineReady:false,
+  isSpectator:false,  // true if user joined as spectator
 
   /* Replay */
   replayGame: null,   // Chess instance for replay
@@ -437,6 +439,7 @@ function updatePlayerBarHighlight() {
 //  MOVE HANDLING
 // ────────────────────────────────────────────────────
 function handleSquareClick(sq) {
+  if (G.isSpectator) return; // Spectators can't interact
   resumeAudio();
   if (G.replaying)    { return exitReplay(); }
   if (G.botBusy)      { return; }
@@ -504,6 +507,7 @@ function clearSelection() {
 }
 
 function canMove() {
+  if (G.isSpectator) return false; // Spectators can't move
   if (G.mode === 'local') return true;
   return G.game.turn() === G.playerColor;
 }
@@ -585,6 +589,8 @@ function executeMove(from, to, promotion) {
   // Online sync
   if (G.mode === 'online' && G.conn && G.onlineReady) {
     G.conn.send({ type:'move', from, to, promotion: promotion || null });
+    // Broadcast to spectators
+    broadcastToSpectators({ type:'move', from, to, promotion: promotion || null });
   }
 
   // Check game end
@@ -1180,7 +1186,7 @@ function dragCleanup() {
 // ────────────────────────────────────────────────────
 //  ONLINE (PeerJS P2P)
 // ────────────────────────────────────────────────────
-function initPeer(asHost, code) {
+function initPeer(asHost, code, asSpectator = false) {
   // Destroy any existing peer
   if (G.peer) { try { G.peer.destroy(); } catch(_){} G.peer = null; }
 
@@ -1197,14 +1203,35 @@ function initPeer(asHost, code) {
 
   G.peer.on('error', (err) => {
     console.warn('PeerJS error:', err.type, err);
-    const msg = err.type === 'unavailable-id'
-      ? 'Room code taken. Try another.'
-      : `Connection error: ${err.type}`;
-    setOnlineStatus(asHost ? 'create' : 'join', msg, 'err');
+    if (asSpectator) {
+      setOnlineStatus('spectate', `Connection error: ${err.type}`, 'err');
+    } else {
+      const msg = err.type === 'unavailable-id'
+        ? 'Room code taken. Try another.'
+        : `Connection error: ${err.type}`;
+      setOnlineStatus(asHost ? 'create' : 'join', msg, 'err');
+    }
   });
 
-  if (asHost) {
+  if (asSpectator) {
+    G.isSpectator = true;
+    G.peer.on('open', () => {
+      setOnlineStatus('spectate', `⏳ Connecting to room ${code}…`, '');
+      const conn = G.peer.connect(peerId, { reliable: true });
+      G.conn = conn;
+      wireConnection(conn);
+
+      conn.on('open', () => {
+        conn.send({ type:'spectate', name: 'Spectator' });
+        setOnlineStatus('spectate', '✓ Connected! Watching game…', 'ok');
+      });
+      conn.on('error', () => {
+        setOnlineStatus('spectate', '✗ Room not found. Check code.', 'err');
+      });
+    });
+  } else if (asHost) {
     G.isHost      = true;
+    G.isSpectator = false;
     G.playerColor = 'w';
 
     G.peer.on('open', (id) => {
@@ -1212,19 +1239,27 @@ function initPeer(asHost, code) {
     });
 
     G.peer.on('connection', (conn) => {
-      G.conn = conn;
-      wireConnection(conn);
-      conn.on('open', () => {
-        setOnlineStatus('create', '✓ Opponent connected! Starting…', 'ok');
-        conn.send({ type:'handshake', color:'b', hostReady: true });
-        // Transition instantly
-        hideModal('modal-online');
-        startGame('online');
+      conn.on('data', (data) => {
+        if (data.type === 'spectate') {
+          // Add as spectator
+          G.spectators.push(conn);
+          setOnlineStatus('create', `✓ Opponent + ${G.spectators.length} spectator(s) connected`, 'ok');
+        } else {
+          // This is the main player connection
+          G.conn = conn;
+          wireConnection(conn);
+          conn.on('open', () => {
+            setOnlineStatus('create', '✓ Opponent connected! Starting…', 'ok');
+            conn.send({ type:'handshake', color:'b', hostReady: true });
+            setTimeout(() => startGame('online'), 600);
+          });
+        }
       });
     });
 
   } else {
     G.isHost      = false;
+    G.isSpectator = false;
 
     G.peer.on('open', () => {
       setOnlineStatus('join', `⏳ Connecting to room ${code}…`, '');
@@ -1241,14 +1276,28 @@ function initPeer(asHost, code) {
     });
   }
 }
+}
 
 function wireConnection(conn) {
   conn.on('data', handleOnlineData);
   conn.on('close', () => {
-    G.onlineReady = false;
-    if (!G.game?.game_over()) {
-      showResultModal('Opponent Disconnected', '');
+    // Remove from spectators if present
+    const specIdx = G.spectators.indexOf(conn);
+    if (specIdx !== -1) {
+      G.spectators.splice(specIdx, 1);
+      setOnlineStatus('create', `✓ Opponent + ${G.spectators.length} spectator(s) connected`, 'ok');
+    } else if (conn === G.conn) {
+      G.onlineReady = false;
+      if (!G.game?.game_over()) {
+        showResultModal('Opponent Disconnected', '');
+      }
     }
+  });
+}
+
+function broadcastToSpectators(data) {
+  G.spectators.forEach(conn => {
+    try { conn.send(data); } catch(e) {}
   });
 }
 
@@ -1265,8 +1314,19 @@ function handleOnlineData(data) {
 
     case 'move':
       if (!G.onlineReady || !G.game) return;
-      if (G.game.turn() !== G.playerColor) {
+      if (G.isSpectator) {
+        // Spectators just execute the move to watch
         executeMove(data.from, data.to, data.promotion || null);
+      } else if (G.game.turn() !== G.playerColor) {
+        executeMove(data.from, data.to, data.promotion || null);
+      }
+      break;
+
+    case 'spectate':
+      // Host receives this from spectators
+      if (G.isHost) {
+        // Connection is already added in initPeer
+        setOnlineStatus('create', `✓ Opponent + ${G.spectators.length} spectator(s) connected`, 'ok');
       }
       break;
 
@@ -1276,6 +1336,7 @@ function handleOnlineData(data) {
       break;
     }
     case 'draw-offer':
+      if (G.isSpectator) return;
       if (confirm('Opponent offers a draw. Accept?')) {
         G.conn?.send({ type:'draw-accept' });
         showResultModal('Draw', 'by Agreement');
@@ -1289,7 +1350,7 @@ function handleOnlineData(data) {
       break;
 
     case 'draw-decline':
-      alert('Draw offer declined.');
+      if (!G.isSpectator) alert('Draw offer declined.');
       break;
   }
 }
@@ -1357,6 +1418,28 @@ function startGame(mode) {
   updatePlayerLabels();
   setNavGameMode(modeLabel(mode));
 
+  // Spectator mode UI adjustments
+  if (G.isSpectator) {
+    document.body.classList.add('spectator-mode');
+    const navStatus = document.getElementById('nav-game-mode');
+    if (navStatus) navStatus.textContent = '♟ Watching Game';
+    
+    // Add spectator badge
+    let badge = document.getElementById('spectator-badge');
+    if (!badge) {
+      badge = document.createElement('span');
+      badge.id = 'spectator-badge';
+      badge.className = 'spectator-badge';
+      badge.innerHTML = '👁 Watching';
+      document.querySelector('.nav-actions')?.prepend(badge);
+    }
+    badge.style.display = 'inline-flex';
+  } else {
+    document.body.classList.remove('spectator-mode');
+    const badge = document.getElementById('spectator-badge');
+    if (badge) badge.style.display = 'none';
+  }
+
   playSound('start');
 
   // Start clock
@@ -1374,6 +1457,7 @@ function startGame(mode) {
 }
 
 function modeLabel(mode) {
+  if (G.isSpectator) return 'Spectate';
   const labels = { local:'Local 2P', bot:'vs Stockfish', online:'Online 1v1' };
   return labels[mode] || mode;
 }
@@ -1695,6 +1779,7 @@ function init() {
       const which = tab.dataset.tab;
       document.getElementById('tab-create')?.classList.toggle('hidden', which !== 'create');
       document.getElementById('tab-join')?.classList.toggle('hidden', which !== 'join');
+      document.getElementById('tab-spectate')?.classList.toggle('hidden', which !== 'spectate');
     });
   });
 
@@ -1728,9 +1813,26 @@ function init() {
     initPeer(false, raw);
   });
 
+  // Spectator Join
+  document.getElementById('btn-spectate-join')?.addEventListener('click', () => {
+    const raw  = document.getElementById('spectate-code-input')?.value.trim().toUpperCase();
+    if (!raw || raw.length < 3) {
+      setOnlineStatus('spectate', 'Enter a valid room code.', 'err');
+      return;
+    }
+    G.roomCode = raw;
+    setOnlineStatus('spectate', `⏳ Connecting to room ${raw}…`, '');
+    initPeer(false, raw, true);
+  });
+
   // Pressing Enter in join input
   document.getElementById('join-code-input')?.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') document.getElementById('btn-join-room')?.click();
+  });
+
+  // Pressing Enter in spectate input
+  document.getElementById('spectate-code-input')?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') document.getElementById('btn-spectate-join')?.click();
   });
 
   // ── Replay Buttons ────────────────────────────────
@@ -1928,12 +2030,20 @@ function cleanup() {
   G.botBusy    = false;
   G.replaying  = false;
   G.onlineReady = false;
+  G.isSpectator = false;
+  G.spectators  = [];
+  document.body.classList.remove('spectator-mode');
+  
   if (G.peer) {
     try { G.peer.destroy(); } catch(_) {}
     G.peer = null;
     G.conn = null;
   }
   G.pendingPromo = null;
+  
+  // Remove spectator badge
+  const badge = document.getElementById('spectator-badge');
+  if (badge) badge.remove();
 }
 
 // ────────────────────────────────────────────────────

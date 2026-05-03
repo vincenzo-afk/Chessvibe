@@ -315,6 +315,7 @@
       <div class="online-tabs">
         <button class="otab otab-active" data-tab="create">Create Room</button>
         <button class="otab" data-tab="join">Join Room</button>
+        <button class="otab" data-tab="spectate">Spectate</button>
       </div>
 
       <div id="tab-create" class="tab-pane">
@@ -336,6 +337,16 @@
           <button id="btn-join-room" class="btn-primary">Join →</button>
         </div>
         <div class="online-status" id="online-status-join"></div>
+      </div>
+
+      <div id="tab-spectate" class="tab-pane hidden">
+        <p class="tab-hint">Enter the room code to watch the game live.</p>
+        <div class="join-row">
+          <input type="text" id="spectate-code-input" class="form-input code-input"
+            placeholder="XXXXX" maxlength="5" autocomplete="off" spellcheck="false" />
+          <button id="btn-spectate-join" class="btn-primary">Spectate →</button>
+        </div>
+        <div class="online-status" id="online-status-spectate"></div>
       </div>
 
     </div>

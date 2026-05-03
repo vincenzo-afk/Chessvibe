@@ -1181,6 +1181,31 @@ a { color: var(--accent); }
 .tab-pane.hidden { display: none; }
 .tab-hint { font-size: 0.82rem; color: var(--text-dim); line-height: 1.5; }
 
+/* Spectator Mode Styles */
+.spectator-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid var(--border);
+  border-radius: 99px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.spectator-mode .action-btn,
+.spectator-mode .nav-btn-danger,
+.spectator-mode #btn-new-game {
+  pointer-events: none;
+  opacity: 0.4;
+}
+.spectator-mode .board-area {
+  cursor: default;
+}
+
 .room-code-box {
   display: flex; align-items: center;
   gap: 10px;
