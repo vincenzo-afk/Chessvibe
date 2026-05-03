@@ -1269,7 +1269,7 @@ function startGame(mode) {
 
   renderBoard();
   updateMoveHistory();
-  updateBreadcrumb();
+  updateBreadcrumb(); // Will show empty initially
   updatePlayerLabels();
   setNavGameMode(modeLabel(mode));
 
