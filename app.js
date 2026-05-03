@@ -10,14 +10,22 @@
 // ────────────────────────────────────────────────────
 const FILES = ['a','b','c','d','e','f','g','h'];
 
-const PIECE_UNICODE = {
-  wk:'♔', wq:'♕', wr:'♖', wb:'♗', wn:'♘', wp:'♙',
-  bk:'♚', bq:'♛', br:'♜', bb:'♝', bn:'♞', bp:'♟',
+const PIECE_SVG_URLS = {
+  wp: 'https://upload.wikimedia.org/wikipedia/commons/4/45/Chess_plt45.svg',
+  wn: 'https://upload.wikimedia.org/wikipedia/commons/7/70/Chess_nlt45.svg',
+  wb: 'https://upload.wikimedia.org/wikipedia/commons/b/b1/Chess_blt45.svg',
+  wr: 'https://upload.wikimedia.org/wikipedia/commons/7/72/Chess_rlt45.svg',
+  wq: 'https://upload.wikimedia.org/wikipedia/commons/1/15/Chess_qlt45.svg',
+  wk: 'https://upload.wikimedia.org/wikipedia/commons/4/42/Chess_klt45.svg',
+  bp: 'https://upload.wikimedia.org/wikipedia/commons/c/c7/Chess_pdt45.svg',
+  bn: 'https://upload.wikimedia.org/wikipedia/commons/e/ef/Chess_ndt45.svg',
+  bb: 'https://upload.wikimedia.org/wikipedia/commons/9/98/Chess_bdt45.svg',
+  br: 'https://upload.wikimedia.org/wikipedia/commons/f/ff/Chess_rdt45.svg',
+  bq: 'https://upload.wikimedia.org/wikipedia/commons/4/47/Chess_qdt45.svg',
+  bk: 'https://upload.wikimedia.org/wikipedia/commons/f/f0/Chess_kdt45.svg',
 };
-const PIECE_VALUES  = { p:1, n:3, b:3, r:5, q:9, k:0 };
 
-const DIFF_DEPTHS = { 1:4, 2:8, 3:12, 4:15 };
-const DIFF_LABELS = { 1:'Easy (depth 4)', 2:'Medium (depth 8)', 3:'Hard (depth 12)', 4:'Expert (depth 15)' };
+const PIECE_VALUES  = { p:1, n:3, b:3, r:5, q:9, k:0 };
 
 const STOCKFISH_URL = 'https://stockfish.online/api/s/v2.php';
 
@@ -25,20 +33,23 @@ const STOCKFISH_URL = 'https://stockfish.online/api/s/v2.php';
 //  THEMES & PIECE SETS
 // ────────────────────────────────────────────────────
 const THEMES = {
-  classic:  { light: '#eeeed2', dark: '#769656' }, // Updated to Forest as default
-  forest:   { light: '#eeeed2', dark: '#769656' },
-  ocean:    { light: '#dee3e6', dark: '#8ca2ad' },
-  candy:    { light: '#ffd6e7', dark: '#c9005b' },
-  midnight: { light: '#b0b7c3', dark: '#22264b' },
+  classic:  { light: '#eeeed2', dark: '#769656' }, // Forest Green
+  ocean:    { light: '#dee3e6', dark: '#4c79a3' }, // Brighter Ocean
+  candy:    { light: '#ffecf2', dark: '#e91e63' }, // Vibrant Candy
+  midnight: { light: '#c5cae9', dark: '#303f9f' }, // Royal Midnight
+  sunset:   { light: '#fff3e0', dark: '#f57c00' }, // Sunset Orange
 };
 
 const PIECE_SETS = {
-  unicode: PIECE_UNICODE,
+  modern:  PIECE_SVG_URLS,
+  unicode: {
+    wk:'♔', wq:'♕', wr:'♖', wb:'♗', wn:'♘', wp:'♙',
+    bk:'♚', bq:'♛', br:'♜', bb:'♝', bn:'♞', bp:'♟',
+  },
   letters: {
     wk:'K', wq:'Q', wr:'R', wb:'B', wn:'N', wp:'P',
     bk:'k', bq:'q', br:'r', bb:'b', bn:'n', bp:'p',
-  },
-  filled: PIECE_UNICODE, // same as unicode but we'll style differently
+  }
 };
 
 // ────────────────────────────────────────────────────
@@ -215,15 +226,18 @@ function renderBoard() {
       if (piece) {
         const pieceEl = document.createElement('div');
         pieceEl.className = `piece piece-${piece.color}`;
-        if (G.pieceSet === 'filled') {
-          pieceEl.textContent = PIECE_SETS[G.pieceSet][piece.color + piece.type];
-          pieceEl.style.fontWeight = '900';
-          pieceEl.style.webkitTextStroke = '0px';
+        
+        if (G.pieceSet === 'modern') {
+          const img = document.createElement('img');
+          img.src = PIECE_SVG_URLS[piece.color + piece.type];
+          img.className = 'piece-img';
+          pieceEl.appendChild(img);
         } else {
           pieceEl.textContent = PIECE_SETS[G.pieceSet][piece.color + piece.type];
         }
+        
         pieceEl.dataset.square = sq;
-        pieceEl.draggable = false; // We use custom drag
+        pieceEl.draggable = false;
         cell.appendChild(pieceEl);
       }
 
@@ -546,15 +560,10 @@ function executeMove(from, to, promotion) {
   const toEl = document.querySelector(`[data-square="${to}"] .piece`);
   if (toEl) toEl.classList.add('piece-just-moved');
 
-  // Auto-flip board in local mode (with delay after animation)
+  // Auto-flip board in local mode
   if (G.mode === 'local') {
-    setTimeout(() => {
-      G.flipped = !G.flipped;
-      const boardEl = document.getElementById('board');
-      if (boardEl) {
-        boardEl.classList.toggle('flipped', G.flipped);
-      }
-    }, 200);
+    G.flipped = !G.flipped;
+    renderBoard(); // Logical flip is handled inside renderBoard using G.flipped
   }
 
   // Timer increment for the player who just moved
@@ -1463,8 +1472,8 @@ function init() {
   initAudio();
 
   // Load settings from localStorage
-  G.theme = localStorage.getItem('chessvibe_theme') || 'forest';
-  G.pieceSet = localStorage.getItem('chessvibe_pieceSet') || 'unicode';
+  G.theme = localStorage.getItem('chessvibe_theme') || 'classic';
+  G.pieceSet = localStorage.getItem('chessvibe_pieceSet') || 'modern';
   G.muted = localStorage.getItem('chessvibe_muted') === 'true';
   G.coords = localStorage.getItem('chessvibe_coords') !== 'false'; // default true
 
@@ -1592,9 +1601,9 @@ function init() {
   if (diffSlider && diffDisplay) {
     const updateDiff = () => {
       const v = parseInt(diffSlider.value);
-      diffDisplay.textContent = DIFF_LABELS[v] || '';
+      diffDisplay.textContent = `Level ${v} (depth ${v})`;
       // Update slider gradient
-      const pct = ((v - 1) / 3) * 100;
+      const pct = ((v - 1) / 14) * 100;
       diffSlider.style.background =
         `linear-gradient(to right, var(--accent) 0%, var(--accent) ${pct}%, var(--border2) ${pct}%)`;
     };
@@ -1613,7 +1622,7 @@ function init() {
     let colorVal = document.querySelector('input[name="bot-color"]:checked')?.value || 'w';
     if (colorVal === 'random') colorVal = Math.random() < 0.5 ? 'w' : 'b';
     G.playerColor = colorVal;
-    G.botDepth    = DIFF_DEPTHS[parseInt(diffSlider?.value || '3')] || 12;
+    G.botDepth    = parseInt(diffSlider?.value || '10');
     G.timerOn     = botTimerToggle?.checked || false;
     G.increment   = parseInt(document.getElementById('bot-increment').value) || 0;
     G.autoQueen   = document.getElementById('bot-auto-queen').checked;
