@@ -536,7 +536,9 @@ function executeMove(from, to, promotion) {
 
   // Track captures
   if (move.captured) {
-    G.captured[move.color].push(move.captured);
+    // The piece that was captured belongs to the opponent
+    const capturedColor = move.color === 'w' ? 'b' : 'w';
+    G.captured[capturedColor].push(move.captured);
   }
 
   G.lastMove  = { from, to };
@@ -992,6 +994,11 @@ function onDragStart(e) {
   drag.startX = e.clientX;
   drag.startY = e.clientY;
 
+  // Ensure the piece is selected when dragging starts
+  if (G.selected !== sq) {
+    trySelect(sq);
+  }
+
   // Create ghost
   drag.ghost = document.createElement('div');
   drag.ghost.className = 'drag-ghost';
@@ -1067,6 +1074,11 @@ function onTouchStart(e) {
   drag.moved  = false;
   drag.startX = touch.clientX;
   drag.startY = touch.clientY;
+
+  // Ensure the piece is selected when dragging starts
+  if (G.selected !== sq) {
+    trySelect(sq);
+  }
 
   drag.ghost = document.createElement('div');
   drag.ghost.className = 'drag-ghost';
