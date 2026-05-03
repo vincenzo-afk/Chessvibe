@@ -100,6 +100,20 @@ a { color: var(--accent); }
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-14px); }
 }
+.loader-logo {
+  width: 120px;
+  height: 120px;
+  object-fit: contain;
+  margin-bottom: 20px;
+  filter: drop-shadow(0 0 20px var(--accent-glow));
+  animation: logo-float 3s ease-in-out infinite;
+}
+
+@keyframes logo-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
 .loader-brand {
   font-family: var(--font-display);
   font-size: 2rem;
@@ -159,6 +173,13 @@ a { color: var(--accent); }
   filter: drop-shadow(0 0 8px var(--accent));
   line-height: 1;
 }
+.nav-logo-img {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+  margin-right: 10px;
+}
+
 .logo-name {
   font-family: var(--font-display);
   font-size: 1.1rem;

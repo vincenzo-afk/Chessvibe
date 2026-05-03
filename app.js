@@ -25,7 +25,7 @@ const STOCKFISH_URL = 'https://stockfish.online/api/s/v2.php';
 //  THEMES & PIECE SETS
 // ────────────────────────────────────────────────────
 const THEMES = {
-  classic:  { light: '#f0f0f0', dark: '#1c1c1c' },
+  classic:  { light: '#eeeed2', dark: '#769656' }, // Updated to Forest as default
   forest:   { light: '#eeeed2', dark: '#769656' },
   ocean:    { light: '#dee3e6', dark: '#8ca2ad' },
   candy:    { light: '#ffd6e7', dark: '#c9005b' },
@@ -1463,7 +1463,7 @@ function init() {
   initAudio();
 
   // Load settings from localStorage
-  G.theme = localStorage.getItem('chessvibe_theme') || 'classic';
+  G.theme = localStorage.getItem('chessvibe_theme') || 'forest';
   G.pieceSet = localStorage.getItem('chessvibe_pieceSet') || 'unicode';
   G.muted = localStorage.getItem('chessvibe_muted') === 'true';
   G.coords = localStorage.getItem('chessvibe_coords') !== 'false'; // default true
