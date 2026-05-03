@@ -6,10 +6,10 @@
   <title>ChessVibe ♔</title>
   <link rel="icon" href="assets/chessvibe.jpeg" type="image/jpeg" />
 
-  <!-- Fonts: Cinzel (display) + Outfit (UI) + JetBrains Mono (notation) -->
+  <!-- Fonts: Inter (UI) + JetBrains Mono (notation) -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;900&family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
 
   <!-- chess.js for move validation -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.12.1/chess.min.js"></script>
@@ -26,9 +26,9 @@
 <!-- Modal Backdrop -->
 <div id="modal-overlay"></div>
 
-<!-- ══════════════════════════════════════════
+<!-- ═══════════════════════════════════════
      LOADER
-══════════════════════════════════════════ -->
+═══════════════════════════════════════ -->
 <div id="loader">
   <div class="loader-content">
     <img src="assets/chessvibe.jpeg" class="loader-logo" alt="ChessVibe Logo" />
@@ -40,9 +40,9 @@
   </div>
 </div>
 
-<!-- ══════════════════════════════════════════
+<!-- ═══════════════════════════════════════
      NAVBAR
-══════════════════════════════════════════ -->
+═══════════════════════════════════════ -->
 <nav id="navbar">
   <div class="nav-logo" id="nav-logo-btn">
     <img src="assets/chessvibe.jpeg" class="nav-logo-img" alt="Logo" />
@@ -56,10 +56,6 @@
   <div class="nav-actions">
     <select id="theme-select" class="nav-select hidden" title="Board Theme">
       <option value="classic">Classic B&W</option>
-      <option value="forest">Forest</option>
-      <option value="ocean">Ocean</option>
-      <option value="candy">Candy</option>
-      <option value="midnight">Midnight</option>
     </select>
     <select id="piece-select" class="nav-select hidden" title="Piece Set">
       <option value="unicode">Unicode Classic</option>
@@ -94,9 +90,9 @@
   </div>
 </nav>
 
-<!-- ══════════════════════════════════════════
+<!-- ═══════════════════════════════════════
      SCREEN: MODE SELECTION
-══════════════════════════════════════════ -->
+═══════════════════════════════════════ -->
 <div id="mode-screen" class="screen">
   <div class="mode-hero">
     <div class="hero-badge">♟ Ready to Play</div>
@@ -144,9 +140,9 @@
   </div>
 </div>
 
-<!-- ══════════════════════════════════════════
+<!-- ═══════════════════════════════════════
      SCREEN: GAME
-══════════════════════════════════════════ -->
+═══════════════════════════════════════ -->
 <div id="game-screen" class="screen">
   <div class="game-layout">
 
@@ -226,9 +222,9 @@
   </div>
 </div>
 
-<!-- ══════════════════════════════════════════
+<!-- ═══════════════════════════════════════
      MODALS
-══════════════════════════════════════════ -->
+═══════════════════════════════════════ -->
 
 <!-- ── Bot Setup ── -->
 <div id="modal-bot" class="modal">

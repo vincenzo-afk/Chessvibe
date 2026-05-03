@@ -38,11 +38,7 @@ const STOCKFISH_URL = 'https://stockfish.online/api/s/v2.php';
 //  THEMES & PIECE SETS
 // ────────────────────────────────────────────────────
 const THEMES = {
-  classic:  { light: '#eeeed2', dark: '#769656' }, // Forest Green
-  ocean:    { light: '#dee3e6', dark: '#4c79a3' }, // Brighter Ocean
-  candy:    { light: '#ffecf2', dark: '#e91e63' }, // Vibrant Candy
-  midnight: { light: '#c5cae9', dark: '#303f9f' }, // Royal Midnight
-  sunset:   { light: '#fff3e0', dark: '#f57c00' }, // Sunset Orange
+  classic:  { light: '#f0ede6', dark: '#2d2d2d' }, // Notion B&W
 };
 
 const PIECE_SETS = {
@@ -561,6 +557,7 @@ function executeMove(from, to, promotion) {
 
   // Animate piece
   renderBoard();
+  updateMoveHistory();
 
   const toEl = document.querySelector(`[data-square="${to}"] .piece`);
   if (toEl) toEl.classList.add('piece-just-moved');
@@ -1396,7 +1393,7 @@ function launchConfetti() {
   canvas.height = window.innerHeight;
   const ctx = canvas.getContext('2d');
 
-  const colors = ['#00d084','#00e896','#f0d9b5','#ffd700','#ffffff','#b58863'];
+  const colors = ['#ffffff','#cccccc','#888888','#444444','#e0e0e0'];
   const particles = Array.from({ length: 100 }, () => ({
     x:   Math.random() * canvas.width,
     y:   -Math.random() * canvas.height * 0.3 - 10,
