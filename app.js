@@ -988,6 +988,11 @@ function onDragStart(e) {
   const sq = pieceEl.closest('[data-square]')?.dataset.square;
   if (!sq) return;
 
+  // Only initiate drag if it's the current player's turn and their piece
+  const piece = G.game.get(sq);
+  if (!piece || piece.color !== G.game.turn()) return;
+  if ((G.mode === 'bot' || G.mode === 'online') && piece.color !== G.playerColor) return;
+
   drag.active = true;
   drag.sq     = sq;
   drag.moved  = false;
@@ -1067,6 +1072,10 @@ function onTouchStart(e) {
   if (!pieceEl) return;
   const sq = pieceEl.closest('[data-square]')?.dataset.square;
   if (!sq) return;
+
+  const piece = G.game.get(sq);
+  if (!piece || piece.color !== G.game.turn()) return;
+  if ((G.mode === 'bot' || G.mode === 'online') && piece.color !== G.playerColor) return;
 
   const touch = e.touches[0];
   drag.active = true;
@@ -1208,8 +1217,9 @@ function initPeer(asHost, code) {
       conn.on('open', () => {
         setOnlineStatus('create', '✓ Opponent connected! Starting…', 'ok');
         conn.send({ type:'handshake', color:'b', hostReady: true });
+        // Transition instantly
         hideModal('modal-online');
-        setTimeout(() => startGame('online'), 600);
+        startGame('online');
       });
     });
 
