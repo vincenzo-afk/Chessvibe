@@ -1050,8 +1050,9 @@ function onTouchStart(e) {
   drag.ghost = document.createElement('div');
   drag.ghost.className = 'drag-ghost';
   drag.ghost.textContent = pieceEl.textContent;
-  drag.ghost.style.color = pieceEl.classList.contains('piece-w') ? '#f5f0e8' : '#1a1510';
-  drag.ghost.style.webkitTextStroke = pieceEl.classList.contains('piece-w') ? '1.5px #8a7050' : '1px #4a3828';
+  const isWhite = pieceEl.classList.contains('piece-w');
+  drag.ghost.style.color = getPieceColor(isWhite, G.theme);
+  drag.ghost.style.webkitTextStroke = isWhite ? '1.5px #000000' : '1.5px #555555';
   updateGhostPos(touch.clientX, touch.clientY - 30);
   document.body.appendChild(drag.ghost);
   pieceEl.style.opacity = '0.25';

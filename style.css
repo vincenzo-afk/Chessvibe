@@ -1293,8 +1293,21 @@ a { color: var(--accent); }
   line-height: 1;
   filter: drop-shadow(0 2px 4px rgba(0,0,0,0.6));
 }
-.promo-glyph.color-w { color: #f5f0e8; -webkit-text-stroke: 1px #8a7050; }
-.promo-glyph.color-b { color: #1a1510; -webkit-text-stroke: 1px #4a3828; }
+/* Promotion modal pieces - theme-aware */
+.theme-classic .promo-glyph.color-w { color: #ffffff; -webkit-text-stroke: 1px #000000; }
+.theme-classic .promo-glyph.color-b { color: #0a0a0a; -webkit-text-stroke: 1px #555555; }
+
+.theme-forest .promo-glyph.color-w { color: #2d5a1c; -webkit-text-stroke: 1px #ffffff; }
+.theme-forest .promo-glyph.color-b { color: #ffffff; -webkit-text-stroke: 1px #2d5a1c; }
+
+.theme-ocean .promo-glyph.color-w { color: #1a4d5a; -webkit-text-stroke: 1px #ffffff; }
+.theme-ocean .promo-glyph.color-b { color: #ffffff; -webkit-text-stroke: 1px #1a4d5a; }
+
+.theme-candy .promo-glyph.color-w { color: #8b1a5a; -webkit-text-stroke: 1px #ffffff; }
+.theme-candy .promo-glyph.color-b { color: #ffffff; -webkit-text-stroke: 1px #8b1a5a; }
+
+.theme-midnight .promo-glyph.color-w { color: #ffffff; -webkit-text-stroke: 1px #1a237e; }
+.theme-midnight .promo-glyph.color-b { color: #e8eaf6; -webkit-text-stroke: 1px #1a237e; }
 .promo-name { font-size: 0.72rem; color: var(--text-dim); font-weight: 500; }
 
 /* ── Result Modal ─────────────────────────────────── */
