@@ -54,6 +54,24 @@
   </div>
 
   <div class="nav-actions">
+    <select id="theme-select" class="nav-select hidden" title="Board Theme">
+      <option value="classic">Classic B&W</option>
+      <option value="forest">Forest</option>
+      <option value="ocean">Ocean</option>
+      <option value="candy">Candy</option>
+      <option value="midnight">Midnight</option>
+    </select>
+    <select id="piece-select" class="nav-select hidden" title="Piece Set">
+      <option value="unicode">Unicode Classic</option>
+      <option value="letters">Letters</option>
+      <option value="filled">Filled</option>
+    </select>
+    <button id="btn-sound" class="nav-btn hidden" title="Toggle Sound">
+      🔊
+    </button>
+    <button id="btn-fullscreen" class="nav-btn hidden" title="Toggle Fullscreen">
+      ⛶
+    </button>
     <button id="btn-flip" class="nav-btn hidden" title="Flip Board">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
         <polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/>
@@ -155,6 +173,12 @@
           <span class="bt-label">Stockfish thinking…</span>
         </div>
       </div>
+
+      <!-- ── Move Breadcrumb ── -->
+      <div class="breadcrumb-bar" id="breadcrumb-bar">
+        <div class="breadcrumb-moves" id="breadcrumb-moves"></div>
+        <div class="breadcrumb-arrow">▶</div>
+      </div>
     </div>
 
     <!-- ── Side Panel ── -->
@@ -184,6 +208,7 @@
 
       <div class="action-row">
         <button class="action-btn" id="btn-offer-draw">½ Offer Draw</button>
+        <button class="action-btn" id="btn-coords" title="Toggle Coordinates">Coords</button>
       </div>
     </div>
 
@@ -260,6 +285,25 @@
         </div>
       </div>
 
+      <div class="form-group">
+        <label class="form-lbl">Increment (seconds)</label>
+        <select id="bot-increment" class="form-select">
+          <option value="0">0s</option>
+          <option value="1">1s</option>
+          <option value="2">2s</option>
+          <option value="3">3s</option>
+          <option value="5">5s</option>
+          <option value="10">10s</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-lbl">
+          <input type="checkbox" id="bot-auto-queen" class="form-checkbox" />
+          Auto-promote to Queen
+        </label>
+      </div>
+
     </div>
     <div class="modal-ftr">
       <button id="btn-start-bot" class="btn-primary w-full">Start Game →</button>
@@ -316,6 +360,97 @@
   </div>
 </div>
 
+<!-- ── Local Timer Setup ── -->
+<div id="modal-local-timer" class="modal">
+  <div class="modal-box">
+    <div class="modal-hdr">
+      <h2 class="modal-title">⏱️ Set Game Time</h2>
+      <button class="modal-close" data-close="modal-local-timer">✕</button>
+    </div>
+    <div class="modal-body">
+
+      <div class="form-group">
+        <label class="form-lbl">Time Control</label>
+        <div class="timer-options">
+          <button class="time-option" data-time="60">1 min</button>
+          <button class="time-option" data-time="180">3 min</button>
+          <button class="time-option" data-time="300">5 min</button>
+          <button class="time-option selected" data-time="600">10 min</button>
+          <button class="time-option" data-time="1800">30 min</button>
+          <button class="time-option custom" data-time="custom">Custom</button>
+        </div>
+      </div>
+
+      <div class="form-group custom-time-group hidden">
+        <label class="form-lbl">Custom Time</label>
+        <div class="custom-time-inputs">
+          <input type="number" id="custom-minutes" class="form-input time-input" placeholder="10" min="1" max="120" value="10" />
+          <span class="time-separator">min</span>
+          <input type="number" id="custom-seconds" class="form-input time-input" placeholder="0" min="0" max="59" value="0" />
+          <span class="time-separator">sec</span>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-lbl">Increment (seconds)</label>
+        <select id="local-increment" class="form-select">
+          <option value="0">0s</option>
+          <option value="1">1s</option>
+          <option value="2">2s</option>
+          <option value="3">3s</option>
+          <option value="5">5s</option>
+          <option value="10">10s</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-lbl">
+          <input type="checkbox" id="local-auto-queen" class="form-checkbox" />
+          Auto-promote to Queen
+        </label>
+      </div>
+
+      <div class="form-group">
+        <label class="form-lbl">Timer Behavior</label>
+        <p class="form-desc">Each player's timer counts down only during their turn.</p>
+      </div>
+
+    </div>
+    <div class="modal-ftr">
+      <button id="btn-start-local" class="btn-primary w-full">Start Local Game →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Local Draw Offer ── -->
+<div id="modal-local-draw" class="modal">
+  <div class="modal-box result-box">
+    <div class="modal-hdr">
+      <button class="modal-close" data-close="modal-local-draw">✕</button>
+    </div>
+    <div class="result-glyph">🤝</div>
+    <h2 class="result-title" id="draw-offer-title">Draw Offer</h2>
+    <p class="result-reason" id="draw-offer-message">White offers a Draw — Accept or Decline?</p>
+    <div class="modal-ftr draw-ftr">
+      <button id="btn-decline-draw" class="btn-ghost">Decline</button>
+      <button id="btn-accept-draw" class="btn-primary">Accept Draw</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Resign Confirmation ── -->
+<div id="modal-resign-confirm" class="modal">
+  <div class="modal-box result-box">
+    <div class="result-glyph">🏁</div>
+    <h2 class="result-title">Resign Game?</h2>
+    <p class="result-reason" id="resign-confirm-message">Are you sure you want to resign?</p>
+    <div class="modal-ftr draw-ftr">
+      <button id="btn-cancel-resign" class="btn-ghost">Cancel</button>
+      <button id="btn-confirm-resign" class="btn-primary">Resign</button>
+    </div>
+  </div>
+</div>
+
 <!-- ── Result ── -->
 <div id="modal-result" class="modal">
   <div class="modal-box result-box">
@@ -328,6 +463,14 @@
       <button id="btn-exit-game" class="btn-ghost">Main Menu</button>
     </div>
   </div>
+</div>
+
+<!-- ── Context Menu ── -->
+<div id="context-menu" class="context-menu hidden">
+  <div class="context-item" data-annotation="!!">!! Brilliant</div>
+  <div class="context-item" data-annotation="!">! Good move</div>
+  <div class="context-item" data-annotation="?">? Mistake</div>
+  <div class="context-item" data-annotation="??">?? Blunder</div>
 </div>
 
 <script src="app.js"></script>

@@ -22,6 +22,26 @@ const DIFF_LABELS = { 1:'Easy (depth 4)', 2:'Medium (depth 8)', 3:'Hard (depth 1
 const STOCKFISH_URL = 'https://stockfish.online/api/s/v2.php';
 
 // ────────────────────────────────────────────────────
+//  THEMES & PIECE SETS
+// ────────────────────────────────────────────────────
+const THEMES = {
+  classic:  { light: '#f0f0f0', dark: '#1c1c1c' },
+  forest:   { light: '#eeeed2', dark: '#769656' },
+  ocean:    { light: '#dee3e6', dark: '#8ca2ad' },
+  candy:    { light: '#ffd6e7', dark: '#c9005b' },
+  midnight: { light: '#b0b7c3', dark: '#22264b' },
+};
+
+const PIECE_SETS = {
+  unicode: PIECE_UNICODE,
+  letters: {
+    wk:'K', wq:'Q', wr:'R', wb:'B', wn:'N', wp:'P',
+    bk:'k', bq:'q', br:'r', bb:'b', bn:'n', bp:'p',
+  },
+  filled: PIECE_UNICODE, // same as unicode but we'll style differently
+};
+
+// ────────────────────────────────────────────────────
 //  GAME STATE
 // ────────────────────────────────────────────────────
 const G = {
@@ -66,8 +86,22 @@ const G = {
   /* Captures */
   captured:   { w:[], b:[] }, // pieces taken BY that color
 
-  /* Audio */
-  audioCtx:   null,
+   /* Audio */
+   audioCtx:   null,
+   muted:      false,
+
+   /* UI */
+   theme:      'classic',
+   pieceSet:   'unicode',
+   coords:     true,
+   autoQueen:  false,
+   increment:  0,
+
+   /* Pre-move */
+   preMove:    null, // { from, to }
+
+   /* Annotations */
+   annotations: {}, // moveIdx -> annotation
 };
 
 // ────────────────────────────────────────────────────
@@ -84,7 +118,7 @@ function resumeAudio() {
 }
 
 function playSound(type) {
-  if (!G.audioCtx) return;
+  if (!G.audioCtx || G.muted) return;
   const ctx = G.audioCtx;
 
   const play = (freq, type_, dur, vol, delay = 0) => {
@@ -161,17 +195,19 @@ function renderBoard() {
       if (G.legalMoves.includes(sq)) cell.classList.add('legal-target');
 
       // Coordinate labels
-      if (dCol === 0) {
-        const lbl = document.createElement('span');
-        lbl.className = 'coord-rank';
-        lbl.textContent = rank;
-        cell.appendChild(lbl);
-      }
-      if (dRow === 7) {
-        const lbl = document.createElement('span');
-        lbl.className = 'coord-file';
-        lbl.textContent = FILES[file];
-        cell.appendChild(lbl);
+      if (G.coords) {
+        if (dCol === 0) {
+          const lbl = document.createElement('span');
+          lbl.className = 'coord-rank';
+          lbl.textContent = rank;
+          cell.appendChild(lbl);
+        }
+        if (dRow === 7) {
+          const lbl = document.createElement('span');
+          lbl.className = 'coord-file';
+          lbl.textContent = FILES[file];
+          cell.appendChild(lbl);
+        }
       }
 
       // Piece
@@ -179,7 +215,13 @@ function renderBoard() {
       if (piece) {
         const pieceEl = document.createElement('div');
         pieceEl.className = `piece piece-${piece.color}`;
-        pieceEl.textContent = PIECE_UNICODE[piece.color + piece.type];
+        if (G.pieceSet === 'filled') {
+          pieceEl.textContent = PIECE_SETS[G.pieceSet][piece.color + piece.type];
+          pieceEl.style.fontWeight = '900';
+          pieceEl.style.webkitTextStroke = '0px';
+        } else {
+          pieceEl.textContent = PIECE_SETS[G.pieceSet][piece.color + piece.type];
+        }
         pieceEl.dataset.square = sq;
         pieceEl.draggable = false; // We use custom drag
         cell.appendChild(pieceEl);
@@ -196,9 +238,113 @@ function renderBoard() {
     }
   }
 
-  updateCapturedStrips();
-  updateTurnIndicator();
-  updatePlayerBarHighlight();
+   updateCapturedStrips();
+   updateTurnIndicator();
+   updatePlayerBarHighlight();
+}
+
+function applyTheme() {
+  const theme = THEMES[G.theme];
+  if (!theme) return;
+
+  document.documentElement.style.setProperty('--sq-light', theme.light);
+  document.documentElement.style.setProperty('--sq-dark', theme.dark);
+
+  // Save to localStorage
+  localStorage.setItem('chessvibe_theme', G.theme);
+}
+
+function applyPieceSet() {
+  // Re-render board to apply new piece set
+  renderBoard();
+
+  // Save to localStorage
+  localStorage.setItem('chessvibe_pieceSet', G.pieceSet);
+}
+
+function highlightPreMove() {
+  if (!G.preMove) return;
+  const fromEl = document.querySelector(`[data-square="${G.preMove.from}"]`);
+  const toEl = document.querySelector(`[data-square="${G.preMove.to}"]`);
+  if (fromEl) fromEl.classList.add('pre-move-from');
+  if (toEl) toEl.classList.add('pre-move-to');
+}
+
+function cancelPreMove() {
+  G.preMove = null;
+  document.querySelectorAll('.pre-move-from, .pre-move-to').forEach(el => {
+    el.classList.remove('pre-move-from', 'pre-move-to');
+  });
+  renderBoard();
+}
+
+function showAnnotationMenu(e, moveIdx) {
+  e.preventDefault();
+  const menu = document.getElementById('context-menu');
+  menu.style.left = e.pageX + 'px';
+  menu.style.top = e.pageY + 'px';
+  menu.classList.remove('hidden');
+
+  // Store the move index for the menu items
+  menu.dataset.moveIdx = moveIdx;
+
+  // Hide menu when clicking elsewhere
+  const hideMenu = () => {
+    menu.classList.add('hidden');
+    document.removeEventListener('click', hideMenu);
+  };
+  setTimeout(() => document.addEventListener('click', hideMenu), 10);
+}
+
+function setAnnotation(moveIdx, annotation) {
+  G.annotations[moveIdx] = annotation;
+  updateMoveHistory();
+}
+
+function evaluateMoveForAnnotation(moveIdx) {
+  if (G.mode !== 'bot' || !G.game) return;
+
+  const history = G.game.history({ verbose: true });
+  if (moveIdx >= history.length) return;
+
+  const move = history[moveIdx];
+  if (!move.captured) return; // Only annotate captures for simplicity
+
+  const pieceValue = PIECE_VALUES[move.captured] || 0;
+  let annotation = '';
+
+  if (pieceValue >= 3) { // Queen or Rook
+    annotation = '!!';
+  } else if (pieceValue >= 1) { // Any capture
+    annotation = '!';
+  }
+
+  if (annotation && !G.annotations[moveIdx]) {
+    G.annotations[moveIdx] = annotation;
+  }
+}
+
+function updateBreadcrumb() {
+  const bar = document.getElementById('breadcrumb-moves');
+  if (!bar) return;
+
+  const history = G.game.history({ verbose: true });
+  if (history.length === 0) {
+    bar.innerHTML = '';
+    return;
+  }
+
+  const startIdx = Math.max(0, history.length - 5);
+  const moves = history.slice(startIdx);
+
+  bar.innerHTML = '';
+  moves.forEach((move, idx) => {
+    const moveEl = document.createElement('div');
+    moveEl.className = 'breadcrumb-move';
+    moveEl.textContent = move.san;
+    moveEl.addEventListener('click', () => jumpToMove(startIdx + idx));
+    bar.appendChild(moveEl);
+  });
 }
 
 function findKingSq(gameInst, color) {
@@ -263,7 +409,35 @@ function handleSquareClick(sq) {
   if (G.replaying)    { return exitReplay(); }
   if (G.botBusy)      { return; }
   if (G.game.game_over()) { return; }
-  if (!canMove())     { return; }
+
+  // Handle pre-move during opponent's turn
+  if (!canMove() && (G.mode === 'local' || G.mode === 'online')) {
+    if (G.selected) {
+      if (G.legalMoves.includes(sq)) {
+        // Set pre-move
+        G.preMove = { from: G.selected, to: sq };
+        clearSelection();
+        renderBoard();
+        // Highlight pre-move squares
+        highlightPreMove();
+        return;
+      } else {
+        clearSelection();
+        trySelect(sq);
+      }
+    } else {
+      trySelect(sq);
+    }
+    return;
+  }
+
+  // Cancel pre-move on right-click or tap
+  if (sq === G.preMove?.from || sq === G.preMove?.to) {
+    cancelPreMove();
+    return;
+  }
+
+  if (!canMove()) return;
 
   if (G.selected) {
     if (G.legalMoves.includes(sq)) {
@@ -308,9 +482,14 @@ function attemptMove(from, to) {
   const toRank  = parseInt(to[1]);
   if (piece && piece.type === 'p') {
     if ((piece.color === 'w' && toRank === 8) || (piece.color === 'b' && toRank === 1)) {
-      G.pendingPromo = { from, to };
-      showPromotionModal(piece.color);
-      return;
+      if (G.autoQueen) {
+        executeMove(from, to, 'q');
+        return;
+      } else {
+        G.pendingPromo = { from, to };
+        showPromotionModal(piece.color);
+        return;
+      }
     }
   }
   executeMove(from, to, null);
@@ -350,8 +529,28 @@ function executeMove(from, to, promotion) {
   const toEl = document.querySelector(`[data-square="${to}"] .piece`);
   if (toEl) toEl.classList.add('piece-just-moved');
 
+  // Auto-flip board in local mode (with delay after animation)
+  if (G.mode === 'local') {
+    setTimeout(() => {
+      G.flipped = !G.flipped;
+      const boardEl = document.getElementById('board');
+      if (boardEl) {
+        boardEl.classList.toggle('flipped', G.flipped);
+      }
+    }, 200);
+  }
+
+  // Timer increment for the player who just moved
+  if (G.timerOn && G.increment > 0) {
+    G.timers[move.color] += G.increment;
+    renderTimers();
+  }
+
   // Timer switch
   if (G.timerOn) switchClock();
+
+  // Evaluate move for automatic annotation
+  evaluateMoveForAnnotation(G.game.history().length - 1);
 
   // Online sync
   if (G.mode === 'online' && G.conn && G.onlineReady) {
@@ -361,12 +560,23 @@ function executeMove(from, to, promotion) {
   // Check game end
   if (checkGameOver()) return true;
 
+  // Execute pre-move if it's now the player's turn
+  if (G.preMove && canMove()) {
+    const { from, to } = G.preMove;
+    cancelPreMove();
+    if (G.game.moves({ square: from, verbose: true }).some(m => m.to === to)) {
+      attemptMove(from, to);
+      return true;
+    }
+  }
+
   // Bot response
   if (G.mode === 'bot' && G.game.turn() !== G.playerColor) {
     setTimeout(doBotMove, 350);
   }
 
   return true;
+}
 }
 
 // ────────────────────────────────────────────────────
@@ -509,17 +719,19 @@ function updateMoveHistory() {
 
     const wSpan = document.createElement('span');
     wSpan.className = 'move-san';
-    wSpan.textContent = history[i].san;
+    wSpan.textContent = history[i].san + (G.annotations[i] || '');
     wSpan.dataset.moveIdx = i;
     wSpan.addEventListener('click', () => jumpToMove(i));
+    wSpan.addEventListener('contextmenu', (e) => showAnnotationMenu(e, i));
     row.appendChild(wSpan);
 
     if (history[i + 1]) {
       const bSpan = document.createElement('span');
       bSpan.className = 'move-san';
-      bSpan.textContent = history[i + 1].san;
+      bSpan.textContent = history[i + 1].san + (G.annotations[i + 1] || '');
       bSpan.dataset.moveIdx = i + 1;
       bSpan.addEventListener('click', () => jumpToMove(i + 1));
+      bSpan.addEventListener('contextmenu', (e) => showAnnotationMenu(e, i + 1));
       row.appendChild(bSpan);
     }
 
@@ -553,6 +765,7 @@ function jumpToMove(idx) {
 
   renderBoard();
   highlightActiveMoveInList(idx);
+  updateBreadcrumb();
 }
 
 function highlightActiveMoveInList(idx) {
@@ -673,8 +886,9 @@ function tickClock() {
   renderTimers();
   if (G.timers[G.activeClk] <= 0) {
     stopClock();
-    const winner = G.activeClk === 'w' ? 'Black' : 'White';
-    showResultModal(`${winner} Wins`, 'on Time');
+    const loser = G.activeClk;
+    const winner = loser === 'w' ? 'Black' : 'White';
+    showResultModal(`${winner} Wins`, `Time Out — ${loser === 'w' ? 'White' : 'Black'} ran out of time`);
   }
 }
 
@@ -1023,6 +1237,8 @@ function startGame(mode) {
   G.replayGame = null;
   G.replayIdx  = -1;
   G.botBusy    = false;
+  G.preMove    = null;
+  G.annotations = {};
   G.inited     = true;
 
   // Reset board orientation
@@ -1031,13 +1247,20 @@ function startGame(mode) {
   } else if (mode === 'bot') {
     G.flipped = (G.playerColor === 'b');
   } else {
-    G.flipped = false;
+    G.flipped = false; // Local mode: always start with white at bottom
   }
 
   // Reset timer
   stopClock();
-  const timerSec = getSelectedTimer(mode);
-  G.timers = { w: timerSec, b: timerSec };
+  let timerSec = 0;
+  if (mode === 'local') {
+    timerSec = G.timers ? G.timers.w : 600; // Use the selected time from modal
+    G.timers = { w: timerSec, b: timerSec };
+  } else {
+    timerSec = getSelectedTimer(mode);
+    G.timers = { w: timerSec, b: timerSec };
+  }
+  G.timerOn = timerSec > 0;
   renderTimers();
 
   // Show game screen
@@ -1046,6 +1269,7 @@ function startGame(mode) {
 
   renderBoard();
   updateMoveHistory();
+  updateBreadcrumb();
   updatePlayerLabels();
   setNavGameMode(modeLabel(mode));
 
@@ -1198,7 +1422,7 @@ function showScreen(id) {
 }
 
 function showNavButtons(inGame) {
-  const btns = ['btn-flip','btn-resign','btn-new-game'];
+  const btns = ['theme-select','piece-select','btn-sound','btn-fullscreen','btn-flip','btn-resign','btn-new-game'];
   btns.forEach(id => document.getElementById(id)?.classList.toggle('hidden', !inGame));
 }
 
@@ -1220,6 +1444,25 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 function init() {
   initAudio();
 
+  // Load settings from localStorage
+  G.theme = localStorage.getItem('chessvibe_theme') || 'classic';
+  G.pieceSet = localStorage.getItem('chessvibe_pieceSet') || 'unicode';
+  G.muted = localStorage.getItem('chessvibe_muted') === 'true';
+  G.coords = localStorage.getItem('chessvibe_coords') !== 'false'; // default true
+
+  // Apply settings
+  applyTheme();
+  document.getElementById('theme-select').value = G.theme;
+  document.getElementById('piece-select').value = G.pieceSet;
+  document.getElementById('btn-sound').textContent = G.muted ? '🔇' : '🔊';
+  document.getElementById('btn-coords').textContent = G.coords ? 'Coords' : 'Coords';
+
+  // Update fullscreen button on state change
+  document.addEventListener('fullscreenchange', () => {
+    const btn = document.getElementById('btn-fullscreen');
+    if (btn) btn.textContent = document.fullscreenElement ? '⛶' : '⛶';
+  });
+
   // ── Loader → Mode Screen ──────────────────────────
   setTimeout(() => {
     document.getElementById('loader')?.classList.add('hidden');
@@ -1236,7 +1479,7 @@ function init() {
     card.addEventListener('click', () => {
       const mode = card.dataset.mode;
       if (mode === 'local') {
-        startGame('local');
+        showModal('modal-local-timer');
       } else if (mode === 'bot') {
         showModal('modal-bot');
       } else if (mode === 'online') {
@@ -1258,6 +1501,71 @@ function init() {
     document.querySelectorAll('.modal.active:not(#modal-promotion):not(#modal-result)').forEach(m => {
       hideModal(m.id);
     });
+  });
+
+  // ── Local Timer Modal ─────────────────────────────
+  document.querySelectorAll('.time-option').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.time-option').forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+
+      const isCustom = btn.dataset.time === 'custom';
+      document.querySelector('.custom-time-group').classList.toggle('hidden', !isCustom);
+    });
+  });
+
+  document.getElementById('btn-start-local')?.addEventListener('click', () => {
+    const selectedBtn = document.querySelector('.time-option.selected');
+    let timeSec = 600; // default 10 min
+
+    if (selectedBtn) {
+      const timeData = selectedBtn.dataset.time;
+      if (timeData === 'custom') {
+        const mins = parseInt(document.getElementById('custom-minutes').value) || 10;
+        const secs = parseInt(document.getElementById('custom-seconds').value) || 0;
+        timeSec = mins * 60 + secs;
+      } else {
+        timeSec = parseInt(timeData);
+      }
+    }
+
+    G.timers = { w: timeSec, b: timeSec };
+    G.timerOn = timeSec > 0;
+    G.increment = parseInt(document.getElementById('local-increment').value) || 0;
+    G.autoQueen = document.getElementById('local-auto-queen').checked;
+    hideModal('modal-local-timer');
+    startGame('local');
+  });
+
+  // ── Local Draw Modal ───────────────────────────────
+  document.getElementById('btn-accept-draw')?.addEventListener('click', () => {
+    hideModal('modal-local-draw');
+    stopClock();
+    showResultModal('Draw', 'by Agreement');
+  });
+
+  document.getElementById('btn-decline-draw')?.addEventListener('click', () => {
+    hideModal('modal-local-draw');
+    // Show brief notification
+    const notification = document.createElement('div');
+    notification.className = 'draw-notification';
+    notification.textContent = 'Draw offer declined';
+    notification.style.cssText = `
+      position: fixed;
+      top: 70px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 8px 16px;
+      color: var(--text-dim);
+      font-size: 0.85rem;
+      z-index: 1000;
+      animation: fade-in-out 2s ease forwards;
+    `;
+    document.body.appendChild(notification);
+    setTimeout(() => notification.remove(), 2000);
   });
 
   // ── Bot Modal ─────────────────────────────────────
@@ -1289,6 +1597,8 @@ function init() {
     G.playerColor = colorVal;
     G.botDepth    = DIFF_DEPTHS[parseInt(diffSlider?.value || '3')] || 12;
     G.timerOn     = botTimerToggle?.checked || false;
+    G.increment   = parseInt(document.getElementById('bot-increment').value) || 0;
+    G.autoQueen   = document.getElementById('bot-auto-queen').checked;
     hideModal('modal-bot');
     startGame('bot');
   });
@@ -1375,14 +1685,13 @@ function init() {
   });
 
   document.getElementById('btn-resign')?.addEventListener('click', () => {
-    if (!confirm('Resign this game?')) return;
-    if (G.mode === 'online' && G.conn && G.onlineReady) {
-      G.conn.send({ type:'resign', color: G.playerColor });
-    }
-    const loser  = G.mode === 'local' ? G.game.turn() : G.playerColor;
-    const winner = loser === 'w' ? 'Black' : 'White';
-    stopClock();
-    showResultModal(`${winner} Wins`, 'by Resignation');
+    const currentTurn = G.game.turn();
+    const currentPlayer = currentTurn === 'w' ? 'White' : 'Black';
+    const opponent = currentTurn === 'w' ? 'Black' : 'White';
+
+    document.getElementById('resign-confirm-message').textContent =
+      `Are you sure you want to resign? ${opponent} will win.`;
+    showModal('modal-resign-confirm');
   });
 
   // ── Result Modal Buttons ──────────────────────────
@@ -1419,17 +1728,115 @@ function init() {
       btn.textContent = 'Offer Sent…';
       setTimeout(() => { btn.textContent = '½ Offer Draw'; }, 4000);
     } else if (G.mode === 'local') {
-      const turn = G.game.turn() === 'w' ? 'Black' : 'White';
-      if (confirm(`${turn}, accept draw?`)) {
-        showResultModal('Draw', 'by Agreement');
-      }
+      showLocalDrawOffer();
     }
+  });
+
+  // ── Local Draw Modal ───────────────────────────────
+  document.getElementById('btn-accept-draw')?.addEventListener('click', () => {
+    hideModal('modal-local-draw');
+    stopClock();
+    showResultModal('Draw', 'by Agreement');
+  });
+
+  document.getElementById('btn-decline-draw')?.addEventListener('click', () => {
+    hideModal('modal-local-draw');
+    // Resume clock after decline
+    if (G.timerOn) startClock();
+    // Show brief notification
+    const notification = document.createElement('div');
+    notification.className = 'draw-notification';
+    notification.textContent = 'Draw offer declined';
+    notification.style.cssText = `
+      position: fixed;
+      top: 70px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 8px 16px;
+      color: var(--text-dim);
+      font-size: 0.85rem;
+      z-index: 1000;
+      animation: fade-in-out 2s ease forwards;
+    `;
+    document.body.appendChild(notification);
+    setTimeout(() => notification.remove(), 2000);
+  });
+
+  // ── Resign Modal ───────────────────────────────────
+  document.getElementById('btn-cancel-resign')?.addEventListener('click', () => {
+    hideModal('modal-resign-confirm');
+  });
+
+  document.getElementById('btn-confirm-resign')?.addEventListener('click', () => {
+    hideModal('modal-resign-confirm');
+    const loser  = G.game.turn();
+    const winner = loser === 'w' ? 'Black' : 'White';
+    stopClock();
+    showResultModal(`${winner} Wins`, `${loser === 'w' ? 'White' : 'Black'} Resigned`);
+  });
+
+  // ── Theme & Piece Selectors ────────────────────────
+  document.getElementById('theme-select')?.addEventListener('change', (e) => {
+    G.theme = e.target.value;
+    applyTheme();
+  });
+
+  document.getElementById('piece-select')?.addEventListener('change', (e) => {
+    G.pieceSet = e.target.value;
+    applyPieceSet();
+  });
+
+  // ── Sound Toggle ───────────────────────────────────
+  document.getElementById('btn-sound')?.addEventListener('click', () => {
+    G.muted = !G.muted;
+    const btn = document.getElementById('btn-sound');
+    btn.textContent = G.muted ? '🔇' : '🔊';
+    localStorage.setItem('chessvibe_muted', G.muted);
+  });
+
+  // ── Fullscreen ─────────────────────────────────────
+  document.getElementById('btn-fullscreen')?.addEventListener('click', () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen();
+    } else {
+      document.exitFullscreen();
+    }
+  });
+
+  // ── Coordinates Toggle ─────────────────────────────
+  document.getElementById('btn-coords')?.addEventListener('click', () => {
+    G.coords = !G.coords;
+    renderBoard();
+    localStorage.setItem('chessvibe_coords', G.coords);
+  });
+
+  // ── Context Menu Items ─────────────────────────────
+  document.querySelectorAll('.context-item').forEach(item => {
+    item.addEventListener('click', () => {
+      const annotation = item.dataset.annotation;
+      const moveIdx = parseInt(document.getElementById('context-menu').dataset.moveIdx);
+      setAnnotation(moveIdx, annotation);
+      document.getElementById('context-menu').classList.add('hidden');
+    });
   });
 
   // ── Init Drag & Drop ──────────────────────────────
   // Done after DOM ready, repeated on board re-render
   // (event delegation handles this cleanly on the board element)
   initDragDrop();
+}
+
+function showLocalDrawOffer() {
+  const offeringPlayer = G.game.turn() === 'w' ? 'White' : 'Black';
+  const opponent = G.game.turn() === 'w' ? 'Black' : 'White';
+
+  document.getElementById('draw-offer-title').textContent = 'Draw Offer';
+  document.getElementById('draw-offer-message').textContent = `${offeringPlayer} offers a Draw — Accept or Decline?`;
+
+  showModal('modal-local-draw');
 }
 
 function cleanup() {
