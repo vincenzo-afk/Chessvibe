@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ChessVibe ♟</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>♟</text></svg>" />
+
+  <!-- Fonts: Cinzel (display) + Outfit (UI) + JetBrains Mono (notation) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;900&family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+
+  <!-- chess.js for move validation -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.13.4/chess.min.js"></script>
+  <!-- PeerJS for online P2P -->
+  <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.2/dist/peerjs.min.js"></script>
+
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<!-- Confetti Canvas -->
+<canvas id="particle-canvas"></canvas>
+
+<!-- Modal Backdrop -->
+<div id="modal-overlay"></div>
+
+<!-- ══════════════════════════════════════════
+     LOADER
+══════════════════════════════════════════ -->
+<div id="loader">
+  <div class="loader-content">
+    <div class="loader-piece">♟</div>
+    <div class="loader-brand">ChessVibe</div>
+    <div class="loader-tagline">The board awaits.</div>
+    <div class="loader-bar-track">
+      <div class="loader-bar-fill"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     NAVBAR
+══════════════════════════════════════════ -->
+<nav id="navbar">
+  <div class="nav-logo" id="nav-logo-btn">
+    <span class="logo-glyph">♟</span>
+    <span class="logo-name">ChessVibe</span>
+  </div>
+
+  <div class="nav-center" id="nav-status-bar">
+    <span id="nav-game-mode"></span>
+  </div>
+
+  <div class="nav-actions">
+    <button id="btn-flip" class="nav-btn hidden" title="Flip Board">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/>
+        <polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/>
+      </svg>
+    </button>
+    <button id="btn-resign" class="nav-btn nav-btn-danger hidden" title="Resign">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/>
+        <line x1="4" y1="22" x2="4" y2="15"/>
+      </svg>
+    </button>
+    <button id="btn-new-game" class="nav-btn nav-btn-accent hidden">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="1 4 1 10 7 10"/>
+        <path d="M3.51 15a9 9 0 1 0 .49-5"/>
+      </svg>
+      New Game
+    </button>
+  </div>
+</nav>
+
+<!-- ══════════════════════════════════════════
+     SCREEN: MODE SELECTION
+══════════════════════════════════════════ -->
+<div id="mode-screen" class="screen">
+  <div class="mode-hero">
+    <div class="hero-badge">♟ Ready to Play</div>
+    <h1 class="hero-title">Choose<br/><em>Your Battle</em></h1>
+    <p class="hero-subtitle">Three ways to play. Zero compromises.</p>
+  </div>
+
+  <div class="mode-cards">
+    <div class="mode-card" data-mode="local">
+      <div class="mode-card-glow"></div>
+      <div class="mode-icon">♟</div>
+      <div class="mode-info">
+        <h3 class="mode-name">Local 2 Player</h3>
+        <p class="mode-desc">Pass and play with a friend on one device</p>
+      </div>
+      <span class="mode-badge">Pass & Play</span>
+      <div class="mode-arrow">→</div>
+    </div>
+
+    <div class="mode-card mode-card-featured" data-mode="bot">
+      <div class="mode-card-glow"></div>
+      <div class="mode-icon">⚡</div>
+      <div class="mode-info">
+        <h3 class="mode-name">Play vs Bot</h3>
+        <p class="mode-desc">Challenge the powerful Stockfish engine</p>
+      </div>
+      <span class="mode-badge mode-badge-accent">AI Powered</span>
+      <div class="mode-arrow">→</div>
+    </div>
+
+    <div class="mode-card" data-mode="online">
+      <div class="mode-card-glow"></div>
+      <div class="mode-icon">🌐</div>
+      <div class="mode-info">
+        <h3 class="mode-name">Online 1v1</h3>
+        <p class="mode-desc">Create a room and challenge a friend online</p>
+      </div>
+      <span class="mode-badge">Real-Time</span>
+      <div class="mode-arrow">→</div>
+    </div>
+  </div>
+
+  <div class="mode-footer">
+    <span>Full legal move validation · Replay · Captured pieces · Promotion</span>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     SCREEN: GAME
+══════════════════════════════════════════ -->
+<div id="game-screen" class="screen">
+  <div class="game-layout">
+
+    <!-- ── Opponent (Top) ── -->
+    <div class="player-bar player-bar-top" id="player-bar-top">
+      <div class="player-avatar" id="avatar-top">♚</div>
+      <div class="player-info-col">
+        <span class="player-name" id="player-top-name">Black</span>
+        <div class="captured-strip" id="captured-by-white"></div>
+      </div>
+      <span class="material-adv" id="advantage-black"></span>
+      <div class="timer-pill" id="timer-black">10:00</div>
+    </div>
+
+    <!-- ── Board ── -->
+    <div class="board-area">
+      <div class="board-frame">
+        <div id="board"></div>
+        <!-- Bot thinking indicator -->
+        <div id="bot-thinking" class="bot-thinking-bar">
+          <span class="bt-dot"></span>
+          <span class="bt-dot"></span>
+          <span class="bt-dot"></span>
+          <span class="bt-label">Stockfish thinking…</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Side Panel ── -->
+    <div class="side-panel">
+      <div class="panel-toprow">
+        <div class="turn-indicator" id="turn-indicator">
+          <span class="turn-dot" id="turn-dot"></span>
+          <span id="turn-text">White's Turn</span>
+        </div>
+      </div>
+
+      <div class="history-panel">
+        <div class="history-header">Move History</div>
+        <div class="move-list" id="move-list">
+          <div class="move-list-empty">No moves yet</div>
+        </div>
+      </div>
+
+      <div class="replay-bar">
+        <button class="replay-btn" id="btn-replay-first" title="First">⏮</button>
+        <button class="replay-btn" id="btn-replay-prev"  title="Prev">◀</button>
+        <button class="replay-btn" id="btn-replay-next"  title="Next">▶</button>
+        <button class="replay-btn" id="btn-replay-last"  title="Last">⏭</button>
+        <div class="replay-sep"></div>
+        <button class="replay-btn replay-exit-btn" id="btn-replay-exit" title="Exit Replay">Live</button>
+      </div>
+
+      <div class="action-row">
+        <button class="action-btn" id="btn-offer-draw">½ Offer Draw</button>
+      </div>
+    </div>
+
+    <!-- ── You (Bottom) ── -->
+    <div class="player-bar player-bar-bottom" id="player-bar-bottom">
+      <div class="player-avatar" id="avatar-bottom">♔</div>
+      <div class="player-info-col">
+        <span class="player-name" id="player-bottom-name">White</span>
+        <div class="captured-strip" id="captured-by-black"></div>
+      </div>
+      <span class="material-adv" id="advantage-white"></span>
+      <div class="timer-pill timer-pill-active" id="timer-white">10:00</div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     MODALS
+══════════════════════════════════════════ -->
+
+<!-- ── Bot Setup ── -->
+<div id="modal-bot" class="modal">
+  <div class="modal-box">
+    <div class="modal-hdr">
+      <h2 class="modal-title">⚡ Play vs Stockfish</h2>
+      <button class="modal-close" data-close="modal-bot">✕</button>
+    </div>
+    <div class="modal-body">
+
+      <div class="form-group">
+        <label class="form-lbl">Your Color</label>
+        <div class="color-picker">
+          <label class="color-choice">
+            <input type="radio" name="bot-color" value="w" checked />
+            <span class="color-tile white-tile">♔ White</span>
+          </label>
+          <label class="color-choice">
+            <input type="radio" name="bot-color" value="random" />
+            <span class="color-tile random-tile">⚄ Random</span>
+          </label>
+          <label class="color-choice">
+            <input type="radio" name="bot-color" value="b" />
+            <span class="color-tile black-tile">♚ Black</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-lbl" for="bot-difficulty">Difficulty</label>
+        <div class="difficulty-row">
+          <input type="range" id="bot-difficulty" min="1" max="4" step="1" value="3" class="diff-slider" />
+          <div class="diff-labels">
+            <span>Easy</span><span>Medium</span><span>Hard</span><span>Expert</span>
+          </div>
+          <div class="diff-display" id="diff-display">Hard (depth 12)</div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-lbl">Timer (per side)</label>
+        <div class="timer-row">
+          <label class="toggle-wrap">
+            <input type="checkbox" id="bot-timer-toggle" class="toggle-input" />
+            <span class="toggle-track"><span class="toggle-thumb"></span></span>
+          </label>
+          <select id="bot-timer-select" class="form-select" disabled>
+            <option value="180">3 min</option>
+            <option value="300">5 min</option>
+            <option value="600" selected>10 min</option>
+            <option value="900">15 min</option>
+            <option value="1800">30 min</option>
+          </select>
+        </div>
+      </div>
+
+    </div>
+    <div class="modal-ftr">
+      <button id="btn-start-bot" class="btn-primary w-full">Start Game →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Online Setup ── -->
+<div id="modal-online" class="modal">
+  <div class="modal-box">
+    <div class="modal-hdr">
+      <h2 class="modal-title">🌐 Online 1v1</h2>
+      <button class="modal-close" data-close="modal-online">✕</button>
+    </div>
+    <div class="modal-body">
+
+      <div class="online-tabs">
+        <button class="otab otab-active" data-tab="create">Create Room</button>
+        <button class="otab" data-tab="join">Join Room</button>
+      </div>
+
+      <div id="tab-create" class="tab-pane">
+        <p class="tab-hint">Generate a room code and share it with your friend.</p>
+        <button id="btn-create-room" class="btn-primary w-full">Generate Room Code</button>
+        <div id="room-code-box" class="room-code-box hidden">
+          <span class="rc-label">Room Code</span>
+          <span class="rc-value" id="rc-value">-----</span>
+          <button id="btn-copy-code" class="btn-ghost btn-sm">Copy</button>
+        </div>
+        <div class="online-status" id="online-status-create"></div>
+      </div>
+
+      <div id="tab-join" class="tab-pane hidden">
+        <p class="tab-hint">Enter the room code your friend shared with you.</p>
+        <div class="join-row">
+          <input type="text" id="join-code-input" class="form-input code-input"
+            placeholder="XXXXX" maxlength="5" autocomplete="off" spellcheck="false" />
+          <button id="btn-join-room" class="btn-primary">Join →</button>
+        </div>
+        <div class="online-status" id="online-status-join"></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ── Promotion ── -->
+<div id="modal-promotion" class="modal">
+  <div class="modal-box promo-box">
+    <div class="modal-hdr">
+      <h2 class="modal-title">Promote Pawn</h2>
+    </div>
+    <div class="promo-grid" id="promo-grid"></div>
+  </div>
+</div>
+
+<!-- ── Result ── -->
+<div id="modal-result" class="modal">
+  <div class="modal-box result-box">
+    <div class="result-glyph">♛</div>
+    <h2 class="result-title" id="result-title">Game Over</h2>
+    <p class="result-reason" id="result-reason"></p>
+    <div class="result-stats" id="result-stats"></div>
+    <div class="modal-ftr result-ftr">
+      <button id="btn-rematch" class="btn-primary">Rematch</button>
+      <button id="btn-exit-game" class="btn-ghost">Main Menu</button>
+    </div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
