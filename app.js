@@ -1169,6 +1169,7 @@ function initPeer(asHost, code) {
       conn.on('open', () => {
         setOnlineStatus('create', '✓ Opponent connected! Starting…', 'ok');
         conn.send({ type:'handshake', color:'b', hostReady: true });
+        hideModal('modal-online');
         setTimeout(() => startGame('online'), 600);
       });
     });
@@ -1209,6 +1210,7 @@ function handleOnlineData(data) {
       G.flipped     = data.color === 'b';
       G.onlineReady = true;
       setNavGameMode('Online — You are ' + (data.color === 'w' ? 'White ♔' : 'Black ♚'));
+      hideModal('modal-online');
       startGame('online');
       break;
 
@@ -1255,6 +1257,10 @@ function setOnlineStatus(tab, msg, state) {
 //  GAME INITIALIZATION
 // ────────────────────────────────────────────────────
 function startGame(mode) {
+  // Hide all active modals and overlay directly
+  document.querySelectorAll('.modal.active').forEach(m => m.classList.remove('active'));
+  document.getElementById('modal-overlay')?.classList.remove('active');
+  
   document.querySelector('.board-frame')?.classList.remove('game-won');
   G.game       = new Chess();
   G.mode       = mode;
