@@ -995,13 +995,25 @@ function onDragStart(e) {
   // Create ghost
   drag.ghost = document.createElement('div');
   drag.ghost.className = 'drag-ghost';
-  drag.ghost.textContent = pieceEl.textContent;
-  const isWhite = pieceEl.classList.contains('piece-w');
-  drag.ghost.style.color = getPieceColor(isWhite, G.theme);
-  drag.ghost.style.webkitTextStroke = isWhite ? '1.5px #000000' : '1.5px #555555';
+  
+  if (G.pieceSet === 'unicode') {
+    drag.ghost.textContent = pieceEl.textContent;
+    const isWhite = pieceEl.classList.contains('piece-w');
+    drag.ghost.style.color = getPieceColor(isWhite, G.theme);
+  } else {
+    const img = pieceEl.querySelector('img');
+    if (img) {
+      const gImg = img.cloneNode();
+      gImg.style.width = '100%'; gImg.style.height = '100%';
+      drag.ghost.appendChild(gImg);
+    }
+  }
+
   updateGhostPos(e.clientX, e.clientY);
   document.body.appendChild(drag.ghost);
-  pieceEl.style.opacity = '0.25';
+  
+  pieceEl.style.opacity = '0.3';
+  pieceEl.style.pointerEvents = 'none';
 
   e.preventDefault();
 }
@@ -1026,22 +1038,20 @@ function onDragEnd(e) {
   const el     = document.elementFromPoint(e.clientX, e.clientY);
   const target = el?.closest('[data-square]')?.dataset.square;
 
+  const movedWasTrue = drag.moved;
   dragCleanup();
 
-  if (drag.moved && target && drag.sq && target !== drag.sq) {
-    // Treat as a move attempt
-    if (G.selected !== drag.sq) {
-      // Force select the source square
-      G.selected   = null;
-      G.legalMoves = [];
-      trySelect(drag.sq);
-    }
-    if (G.legalMoves.includes(target)) {
+  if (movedWasTrue && target && drag.sq && target !== drag.sq) {
+    if (G.legalMoves.includes(target) || G.game.moves({ square: drag.sq, verbose: true }).some(m => m.to === target)) {
       attemptMove(drag.sq, target);
     } else {
-      clearSelection();
       renderBoard();
     }
+  } else if (!movedWasTrue) {
+    // Treat as click
+    handleSquareClick(drag.sq);
+  } else {
+    renderBoard();
   }
 }
 
@@ -1060,13 +1070,25 @@ function onTouchStart(e) {
 
   drag.ghost = document.createElement('div');
   drag.ghost.className = 'drag-ghost';
-  drag.ghost.textContent = pieceEl.textContent;
-  const isWhite = pieceEl.classList.contains('piece-w');
-  drag.ghost.style.color = getPieceColor(isWhite, G.theme);
-  drag.ghost.style.webkitTextStroke = isWhite ? '1.5px #000000' : '1.5px #555555';
-  updateGhostPos(touch.clientX, touch.clientY - 30);
+  
+  if (G.pieceSet === 'unicode') {
+    drag.ghost.textContent = pieceEl.textContent;
+    const isWhite = pieceEl.classList.contains('piece-w');
+    drag.ghost.style.color = getPieceColor(isWhite, G.theme);
+  } else {
+    const img = pieceEl.querySelector('img');
+    if (img) {
+      const gImg = img.cloneNode();
+      gImg.style.width = '100%'; gImg.style.height = '100%';
+      drag.ghost.appendChild(gImg);
+    }
+  }
+
+  updateGhostPos(touch.clientX, touch.clientY - 40);
   document.body.appendChild(drag.ghost);
-  pieceEl.style.opacity = '0.25';
+  
+  pieceEl.style.opacity = '0.3';
+  pieceEl.style.pointerEvents = 'none';
 
   e.preventDefault();
 }
@@ -1120,8 +1142,13 @@ function updateGhostPos(x, y) {
 function dragCleanup() {
   document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
   if (drag.ghost) { drag.ghost.remove(); drag.ghost = null; }
-  // Restore piece opacity
-  document.querySelectorAll('.piece').forEach(el => { el.style.opacity = ''; });
+  
+  // Restore piece styles
+  document.querySelectorAll('.piece').forEach(el => { 
+    el.style.opacity = ''; 
+    el.style.pointerEvents = ''; 
+  });
+
   drag.active = false;
   drag.sq = null;
   drag.moved = false;
