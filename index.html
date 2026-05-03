@@ -51,6 +51,9 @@
 
   <div class="nav-center" id="nav-status-bar">
     <span id="nav-game-mode"></span>
+    <span id="spectator-count" class="spectator-count hidden">
+      👁 <span id="spectator-num">0</span>
+    </span>
   </div>
 
   <div class="nav-actions">
@@ -74,6 +77,7 @@
         <polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/>
       </svg>
     </button>
+    <button id="btn-theme-toggle" class="nav-btn hidden" title="Toggle Light/Dark">☀</button>
     <button id="btn-resign" class="nav-btn nav-btn-danger hidden" title="Resign">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/>
@@ -123,22 +127,46 @@
       <div class="mode-arrow">→</div>
     </div>
 
-    <div class="mode-card" data-mode="online">
-      <div class="mode-card-glow"></div>
-      <div class="mode-icon">🌐</div>
-      <div class="mode-info">
-        <h3 class="mode-name">Online 1v1</h3>
-        <p class="mode-desc">Create a room and challenge a friend online</p>
-      </div>
-      <span class="mode-badge">Real-Time</span>
-      <div class="mode-arrow">→</div>
-    </div>
-  </div>
+     <div class="mode-card" data-mode="online">
+       <div class="mode-card-glow"></div>
+       <div class="mode-icon">🌐</div>
+       <div class="mode-info">
+         <h3 class="mode-name">Online 1v1</h3>
+         <p class="mode-desc">Create a room and challenge a friend online</p>
+       </div>
+       <span class="mode-badge">Real-Time</span>
+       <div class="mode-arrow">→</div>
+     </div>
 
-  <div class="mode-footer">
-    <span>Full legal move validation · Replay · Captured pieces · Promotion</span>
-  </div>
-</div>
+     <div class="mode-card" data-mode="chess960">
+       <div class="mode-card-glow"></div>
+       <div class="mode-icon">♜</div>
+       <div class="mode-info">
+         <h3 class="mode-name">Chess960</h3>
+         <p class="mode-desc">Randomized starting position with legal castling</p>
+       </div>
+       <span class="mode-badge">Fischer Random</span>
+       <div class="mode-arrow">→</div>
+     </div>
+
+     <div class="mode-card" data-mode="gauntlet">
+       <div class="mode-card-glow"></div>
+       <div class="mode-icon">⚔️</div>
+       <div class="mode-info">
+         <h3 class="mode-name">Bot Gauntlet</h3>
+         <p class="mode-desc">Beat 5 bot levels in a row. Can you reach Expert?</p>
+       </div>
+       <span class="mode-badge">5-Stage Challenge</span>
+       <div class="mode-arrow">→</div>
+     </div>
+   </div>
+
+   <div class="mode-footer">
+     <span>Full legal move validation · Replay · Captured pieces · Promotion</span>
+   </div>
+
+   <div id="session-stats-bar" class="session-stats-bar"></div>
+ </div>
 
 <!-- ═══════════════════════════════════════
      SCREEN: GAME
@@ -157,34 +185,41 @@
       <div class="timer-pill" id="timer-black">10:00</div>
     </div>
 
-    <!-- ── Board ── -->
-    <div class="board-area">
-      <div class="board-frame">
-        <div id="board"></div>
-        <!-- Bot thinking indicator -->
-        <div id="bot-thinking" class="bot-thinking-bar">
-          <span class="bt-dot"></span>
-          <span class="bt-dot"></span>
-          <span class="bt-dot"></span>
-          <span class="bt-label">Stockfish thinking…</span>
-        </div>
-      </div>
+     <!-- ── Board ── -->
+     <div class="board-area">
+       <div class="board-frame">
+         <div id="board"></div>
+         <canvas id="hint-canvas"></canvas>
+         <!-- Bot thinking indicator -->
+         <div id="bot-thinking" class="bot-thinking-bar">
+           <span class="bt-dot"></span>
+           <span class="bt-dot"></span>
+           <span class="bt-dot"></span>
+           <span class="bt-label">Stockfish thinking…</span>
+         </div>
+       </div>
+       <div id="eval-bar" class="eval-bar">
+         <div id="eval-fill"></div>
+         <div id="eval-text"></div>
+       </div>
 
-      <!-- ── Move Breadcrumb ── -->
-      <div class="breadcrumb-bar" id="breadcrumb-bar">
-        <div class="breadcrumb-moves" id="breadcrumb-moves"></div>
-        <div class="breadcrumb-arrow">▶</div>
-      </div>
-    </div>
+       <!-- ── Move Breadcrumb ── -->
+       <div class="breadcrumb-bar" id="breadcrumb-bar">
+         <div class="breadcrumb-moves" id="breadcrumb-moves"></div>
+         <div class="breadcrumb-arrow">▶</div>
+       </div>
+       <div id="blindfold-banner" class="blindfold-banner">BLINDFOLD MODE — Pieces Hidden</div>
+     </div>
 
     <!-- ── Side Panel ── -->
     <div class="side-panel">
-      <div class="panel-toprow">
-        <div class="turn-indicator" id="turn-indicator">
-          <span class="turn-dot" id="turn-dot"></span>
-          <span id="turn-text">White's Turn</span>
-        </div>
-      </div>
+       <div class="panel-toprow">
+         <div class="turn-indicator" id="turn-indicator">
+           <span class="turn-dot" id="turn-dot"></span>
+           <span id="turn-text">White's Turn</span>
+         </div>
+         <div id="opening-name" class="opening-tag"></div>
+       </div>
 
       <div class="history-panel">
         <div class="history-header">Move History</div>
@@ -202,10 +237,24 @@
         <button class="replay-btn replay-exit-btn" id="btn-replay-exit" title="Exit Replay">Live</button>
       </div>
 
-      <div class="action-row">
-        <button class="action-btn" id="btn-offer-draw">½ Offer Draw</button>
-        <button class="action-btn" id="btn-coords" title="Toggle Coordinates">Coords</button>
-      </div>
+       <div class="action-row">
+         <button class="action-btn" id="btn-hint">Hint</button>
+         <button class="action-btn" id="btn-takeback">Takeback</button>
+         <button class="action-btn" id="btn-pause">Pause</button>
+         <button class="action-btn" id="btn-blindfold">👁 Blindfold</button>
+         <button class="action-btn" id="btn-undo">↩ Undo</button>
+         <button class="action-btn" id="btn-offer-draw">½ Offer Draw</button>
+         <button class="action-btn" id="btn-coords" title="Toggle Coordinates">Coords</button>
+       </div>
+
+       <div id="chat-panel" class="chat-panel hidden">
+         <div class="chat-header">Chat</div>
+         <div class="chat-messages" id="chat-messages"></div>
+         <div class="chat-input-row">
+           <input type="text" id="chat-input" class="form-input chat-input" placeholder="Message..." maxlength="80" autocomplete="off">
+           <button id="btn-send-chat" class="btn-ghost btn-sm">↵</button>
+         </div>
+       </div>
     </div>
 
     <!-- ── You (Bottom) ── -->
@@ -321,11 +370,15 @@
       <div id="tab-create" class="tab-pane">
         <p class="tab-hint">Generate a room code and share it with your friend.</p>
         <button id="btn-create-room" class="btn-primary w-full">Generate Room Code</button>
-        <div id="room-code-box" class="room-code-box hidden">
-          <span class="rc-label">Room Code</span>
-          <span class="rc-value" id="rc-value">-----</span>
-          <button id="btn-copy-code" class="btn-ghost btn-sm">Copy</button>
-        </div>
+         <div id="room-code-box" class="room-code-box hidden">
+           <span class="rc-label">Room Code</span>
+           <span class="rc-value" id="rc-value">-----</span>
+           <button id="btn-copy-code" class="btn-ghost btn-sm">Copy</button>
+           <div id="invite-url-row" class="invite-url-row hidden">
+             <span class="invite-url-text" id="invite-url-text"></span>
+             <button id="btn-copy-invite" class="btn-ghost btn-sm">Copy Invite</button>
+           </div>
+         </div>
         <div class="online-status" id="online-status-create"></div>
       </div>
 
@@ -454,19 +507,76 @@
   </div>
 </div>
 
-<!-- ── Result ── -->
-<div id="modal-result" class="modal">
-  <div class="modal-box result-box">
-    <div class="result-glyph">♛</div>
-    <h2 class="result-title" id="result-title">Game Over</h2>
-    <p class="result-reason" id="result-reason"></p>
-    <div class="result-stats" id="result-stats"></div>
-    <div class="modal-ftr result-ftr">
-      <button id="btn-rematch" class="btn-primary">Rematch</button>
-      <button id="btn-exit-game" class="btn-ghost">Main Menu</button>
-    </div>
-  </div>
-</div>
+ <!-- ── Result ── -->
+ <div id="modal-result" class="modal">
+   <div class="modal-box result-box">
+     <div class="result-glyph">♛</div>
+     <h2 class="result-title" id="result-title">Game Over</h2>
+     <p class="result-reason" id="result-reason"></p>
+     <div class="result-stats" id="result-stats"></div>
+     <div class="modal-ftr result-ftr">
+       <button id="btn-share-pgn" class="btn-ghost">Share Game</button>
+       <button id="btn-download-pgn" class="btn-ghost">Download PGN</button>
+       <button id="btn-rematch" class="btn-primary">Rematch</button>
+       <button id="btn-exit-game" class="btn-ghost">Main Menu</button>
+     </div>
+   </div>
+ </div>
+
+ <!-- ── Gauntlet ── -->
+ <div id="modal-gauntlet" class="modal">
+   <div class="modal-box">
+     <div class="modal-hdr">
+       <h2 class="modal-title">⚔️ Bot Gauntlet</h2>
+       <button class="modal-close" data-close="modal-gauntlet">✕</button>
+     </div>
+     <div class="modal-body">
+       <p class="gauntlet-desc">Beat 5 bot levels in a row. Can you reach Expert?</p>
+       <div class="gauntlet-stages">
+         <div class="gauntlet-stage" data-stage="1"><span class="stage-num">1</span> Rookie</div>
+         <div class="gauntlet-stage locked" data-stage="2"><span class="stage-num">2</span> Casual</div>
+         <div class="gauntlet-stage locked" data-stage="3"><span class="stage-num">3</span> Club</div>
+         <div class="gauntlet-stage locked" data-stage="4"><span class="stage-num">4</span> Master</div>
+         <div class="gauntlet-stage locked" data-stage="5"><span class="stage-num">5</span> Expert</div>
+       </div>
+     </div>
+     <div class="modal-ftr">
+       <button id="btn-start-gauntlet" class="btn-primary w-full">Start Stage 1 — Rookie</button>
+     </div>
+   </div>
+ </div>
+
+ <!-- ── Takeback Request ── -->
+ <div id="modal-takeback-request" class="modal">
+   <div class="modal-box result-box">
+     <div class="modal-hdr">
+       <button class="modal-close" data-close="modal-takeback-request">✕</button>
+     </div>
+     <div class="result-glyph">↩️</div>
+     <h2 class="result-title">Takeback Requested</h2>
+     <p class="result-reason" id="takeback-request-message">Opponent wants to take back their last move.</p>
+     <div class="modal-ftr draw-ftr">
+       <button id="btn-decline-takeback" class="btn-ghost">Decline</button>
+       <button id="btn-accept-takeback" class="btn-primary">Accept</button>
+     </div>
+   </div>
+ </div>
+
+ <!-- ── Rematch Request ── -->
+ <div id="modal-rematch-request" class="modal">
+   <div class="modal-box result-box">
+     <div class="modal-hdr">
+       <button class="modal-close" data-close="modal-rematch-request">✕</button>
+     </div>
+     <div class="result-glyph">🔄</div>
+     <h2 class="result-title">Rematch Requested</h2>
+     <p class="result-reason" id="rematch-request-message">Opponent wants a rematch. Accept?</p>
+     <div class="modal-ftr draw-ftr">
+       <button id="btn-decline-rematch" class="btn-ghost">Decline</button>
+       <button id="btn-accept-rematch" class="btn-primary">Accept</button>
+     </div>
+   </div>
+ </div>
 
 <!-- ── Context Menu ── -->
 <div id="context-menu" class="context-menu hidden">

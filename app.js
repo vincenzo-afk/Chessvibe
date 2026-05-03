@@ -34,6 +34,137 @@ const PIECE_VALUES  = { p:1, n:3, b:3, r:5, q:9, k:0 };
 
 const STOCKFISH_URL = 'https://stockfish.online/api/s/v2.php';
 
+// Chess Openings Database (minimal ECO)
+const OPENINGS = {
+  // Sicilian Defense
+  "rnbqkbnr/pp1ppppp/8/2p5/4P3/8/PPPP1PPP/RNBQKBNR": "Sicilian Defense",
+  "rnbqkbnr/pp1ppppp/8/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R": "Sicilian Defense, Najdorf Variation",
+  "rnbqkbnr/pp2pppp/3p4/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R": "Sicilian Defense, Scheveningen Variation",
+  "r1bqkbnr/pp1ppppp/2n5/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R": "Sicilian Defense, Closed",
+  "rnbqkbnr/pp1p1ppp/4p3/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R": "Sicilian Defense, Alapin Variation",
+
+  // French Defense
+  "rnbqkbnr/pppp1ppp/4p3/8/4P3/8/PPPP1PPP/RNBQKBNR": "French Defense",
+  "rnbqkbnr/pppp1ppp/4p3/8/4P3/5N2/PPPP1PPP/RNBQKB1R": "French Defense, Exchange Variation",
+  "rnbqk1nr/pppp1ppp/4p3/8/1b2P3/5N2/PPPP1PPP/RNBQKB1R": "French Defense, Winawer Variation",
+
+  // Caro-Kann Defense
+  "rnbqkbnr/pp1ppppp/2p5/8/4P3/8/PPPP1PPP/RNBQKBNR": "Caro-Kann Defense",
+  "rnbqkbnr/pp1ppppp/2p5/8/4P3/2N5/PPPP1PPP/R1BQKBNR": "Caro-Kann Defense, Advance Variation",
+
+  // King's Indian Defense
+  "rnbqkb1r/pppppp1p/5np1/8/4P3/8/PPPP1PPP/RNBQKBNR": "King's Indian Defense",
+
+  // Queen's Gambit
+  "rnbqkbnr/ppp1pppp/8/3p4/2PP4/8/PP2PPPP/RNBQKBNR": "Queen's Gambit Declined",
+  "rnbqkbnr/ppp1pppp/8/3p4/2PP4/2N5/PP2PPPP/R1BQKBNR": "Queen's Gambit Accepted",
+
+  // Ruy Lopez
+  "r1bqkbnr/pppp1ppp/2n5/1B2p3/4P3/5N2/PPPP1PPP/RNBQK2R": "Ruy Lopez, Berlin Defense",
+
+  // Italian Game
+  "r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R": "Italian Game",
+
+  // English Opening
+  "rnbqkbnr/pppppppp/8/8/2P5/8/PP1PPPPP/RNBQKBNR": "English Opening",
+
+  // Nimzo-Indian Defense
+  "rnbqk2r/pppp1ppp/4pn2/8/1bPP4/2N5/PP2PPPP/R1BQKBNR": "Nimzo-Indian Defense",
+
+  // Dutch Defense
+  "rnbqkbnr/ppppp1pp/8/5p2/4P3/8/PPPP1PPP/RNBQKBNR": "Dutch Defense",
+
+  // Pirc Defense
+  "rnbqkb1r/ppp1pppp/3p1n2/8/4P3/5N2/PPPP1PPP/RNBQKB1R": "Pirc Defense",
+
+  // Alekhine's Defense
+  "rnbqkb1r/pppppppp/5n2/8/4P3/8/PPPP1PPP/RNBQKBNR": "Alekhine's Defense",
+
+  // Scandinavian Defense
+  "rnbqkbnr/ppp1pppp/8/3p4/4P3/8/PPPP1PPP/RNBQKBNR": "Scandinavian Defense",
+
+  // Petroff Defense
+  "rnbqkb1r/pppp1ppp/5n2/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R": "Petroff Defense",
+
+  // Vienna Game
+  "rnbqkb1r/pppp1ppp/5n2/4p3/4PP2/8/PPPP2PP/RNBQKBNR": "Vienna Game",
+
+  // London System
+  "rnbqkb1r/pppp1ppp/5n2/4p3/2P5/2N3P1/PP1PPP1P/R1BQKBNR": "London System",
+
+  // Catalan Opening
+  "rnbqkb1r/pppp1ppp/5n2/4p3/2P5/2N5/PP1PPPPP/R1BQKBNR": "Catalan Opening",
+
+  // Grünfeld Defense
+  "rnbqkb1r/ppp1pp1p/5np1/3p4/2PP4/2N5/PP2PPPP/R1BQKBNR": "Grünfeld Defense",
+
+  // Queen's Indian Defense
+  "rnbqkb1r/p1pp1ppp/1p2pn2/8/2PP4/2N5/PP2PPPP/R1BQKBNR": "Queen's Indian Defense",
+
+  // King's Gambit
+  "rnbqkbnr/pppp1ppp/8/4p3/4PP2/8/PPPP2PP/RNBQKBNR": "King's Gambit",
+
+  // King's Gambit Accepted
+  "rnbqkbnr/pppp1ppp/8/8/4pP2/8/PPPP2PP/RNBQKBNR": "King's Gambit Accepted",
+};
+
+// ────────────────────────────────────────────────────
+//  UTILITY FUNCTIONS
+// ────────────────────────────────────────────────────
+function generatePGN() {
+  const today = new Date();
+  const date = `${today.getFullYear()}.${String(today.getMonth()+1).padStart(2,'0')}.${String(today.getDate()).padStart(2,'0')}`;
+  const result = G.game.in_checkmate() ? (G.game.turn() === 'w' ? '0-1' : '1-0') : G.game.in_draw() ? '1/2-1/2' : '*';
+  const mode = modeLabel(G.mode);
+
+  const headers = [
+    `[Event "ChessVibe Game"]`,
+    `[Date "${date}"]`,
+    `[White "White"]`,
+    `[Black "Black"]`,
+    `[Result "${result}"]`,
+    `[Mode "${mode}"]`,
+    `[TimeControl "${G.timers.w}"]`,
+    '',
+  ];
+
+  const pgn = headers.join('\n') + G.game.pgn();
+  return pgn;
+}
+
+function encodePGN(pgn) {
+  return btoa(encodeURIComponent(pgn));
+}
+
+function decodePGN(encoded) {
+  return decodeURIComponent(atob(encoded));
+}
+
+function shareGame() {
+  const pgn = generatePGN();
+  const encoded = encodePGN(pgn);
+  const url = `${location.origin}${location.pathname}?pgn=${encoded}`;
+
+  navigator.clipboard.writeText(url).then(() => {
+    const btn = document.getElementById('btn-share-pgn');
+    if (btn) {
+      btn.textContent = 'Link Copied!';
+      setTimeout(() => btn.textContent = 'Share Game', 2000);
+    }
+  });
+}
+
+function downloadPGN() {
+  const pgn = generatePGN();
+  const blob = new Blob([pgn], { type: 'text/plain' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `chessvibe-game-${new Date().toISOString().split('T')[0]}.pgn`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 // ────────────────────────────────────────────────────
 //  THEMES & PIECE SETS
 // ────────────────────────────────────────────────────
@@ -83,6 +214,41 @@ const G = {
   onlineReady:false,
   isSpectator:false,  // true if user joined as spectator
 
+  /* Hint */
+  hint: { active:false, from:null, to:null, timeout:null },
+
+  /* Game Report */
+  gameReport: { w:null, b:null, done:false },
+
+  /* Opening */
+  currentOpening: null,
+
+  /* Chess960 */
+  chess960: false,
+
+  /* Bullet Mode */
+  bulletMode: false,
+
+  /* Gauntlet */
+  gauntlet: { active:false, stage:1, wins:0, losses:0,
+    depths:[2,4,6,10,15], stageName:['Rookie','Casual','Club','Master','Expert'],
+    completed:false },
+
+  /* Blindfold */
+  blindfold: false,
+
+  /* Session Stats */
+  sessionStats: { local:{wins:0,losses:0,draws:0},
+    bot:{wins:0,losses:0,draws:0}, online:{wins:0,losses:0,draws:0},
+    gauntlet:{stagesCleared:0,attempts:0} },
+
+  /* Move Times */
+  moveTimes: [],
+  moveStartTime: null,
+
+  /* Light Mode */
+  lightMode: false,
+
   /* Replay */
   replayGame: null,   // Chess instance for replay
   replayIdx:  -1,
@@ -91,11 +257,11 @@ const G = {
   /* Promotion */
   pendingPromo: null, // { from, to }
 
-  /* Timer */
-  timerOn:    false,
-  timers:     { w:600, b:600 },
-  activeClk:  null,
-  clkInterval:null,
+    /* Timer */
+    timerOn:    false,
+    timers:     { w:600, b:600, paused: false },
+    activeClk:  null,
+    clkInterval:null,
 
   /* Captures */
   captured:   { w:[], b:[] }, // pieces taken BY that color
@@ -272,6 +438,9 @@ function applyTheme() {
 
   document.documentElement.style.setProperty('--sq-light', theme.light);
   document.documentElement.style.setProperty('--sq-dark', theme.dark);
+
+  // Apply light mode if set
+  document.body.classList.toggle('light-mode', G.lightMode);
 
   // Save to localStorage
   localStorage.setItem('chessvibe_theme', G.theme);
@@ -532,6 +701,11 @@ function attemptMove(from, to) {
 }
 
 function executeMove(from, to, promotion) {
+  // Start move timer if not already
+  if (!G.moveStartTime && G.timerOn) {
+    G.moveStartTime = Date.now();
+  }
+
   const moveArgs = { from, to };
   if (promotion) moveArgs.promotion = promotion;
 
@@ -543,6 +717,13 @@ function executeMove(from, to, promotion) {
     // The piece that was captured belongs to the opponent
     const capturedColor = move.color === 'w' ? 'b' : 'w';
     G.captured[capturedColor].push(move.captured);
+  }
+
+  // Track move time
+  if (G.moveStartTime) {
+    const moveTime = Date.now() - G.moveStartTime;
+    G.moveTimes.push({ color: move.color, ms: moveTime });
+    G.moveStartTime = null;
   }
 
   G.lastMove  = { from, to };
@@ -573,6 +754,9 @@ function executeMove(from, to, promotion) {
     G.flipped = !G.flipped;
     renderBoard(); // Logical flip is handled inside renderBoard using G.flipped
   }
+
+  // Clear hint
+  clearHint();
 
   // Timer increment for the player who just moved
   if (G.timerOn && G.increment > 0) {
@@ -606,12 +790,86 @@ function executeMove(from, to, promotion) {
     }
   }
 
+  // Update eval bar
+  if (G.mode === 'local' || G.mode === 'bot') {
+    updateEvalBar();
+  }
+
   // Bot response
   if (G.mode === 'bot' && G.game.turn() !== G.playerColor) {
     setTimeout(doBotMove, 350);
   }
 
+  // Detect opening
+  detectOpening();
+
   return true;
+}
+
+function detectOpening() {
+  const fen = G.game.fen().split(' ').slice(0, 4).join(' '); // Remove halfmove, fullmove, en passant
+  for (const key in OPENINGS) {
+    if (fen.startsWith(key)) {
+      G.currentOpening = OPENINGS[key];
+      updateOpeningDisplay();
+      return;
+    }
+  }
+  if (G.currentOpening) {
+    G.currentOpening = null;
+    updateOpeningDisplay();
+  }
+}
+
+function updateOpeningDisplay() {
+  const el = document.getElementById('opening-name');
+  if (el) {
+    el.textContent = G.currentOpening ? `[ ${G.currentOpening} ]` : '';
+  }
+}
+
+async function updateEvalBar() {
+  if (G.mode !== 'local' && G.mode !== 'bot') return;
+
+  try {
+    const fen = encodeURIComponent(G.game.fen());
+    const url = `${STOCKFISH_URL}?fen=${fen}&depth=6`;
+    const res = await fetch(url);
+    const data = await res.json();
+
+    if (data.success && data.evaluation) {
+      const evalData = data.evaluation;
+      let score = 0;
+      let mate = null;
+      if (evalData.type === 'cp') {
+        score = evalData.value / 100; // to pawns
+      } else if (evalData.type === 'mate') {
+        mate = evalData.value;
+        score = mate > 0 ? 10 : -10;
+      }
+
+      G.currentEval.score = score;
+      G.currentEval.mate = mate;
+
+      const fillEl = document.getElementById('eval-fill');
+      const textEl = document.getElementById('eval-text');
+      if (fillEl && textEl) {
+        const height = Math.min(100, Math.max(0, 50 + score * 5)); // Cap at ±10
+        fillEl.style.height = `${height}%`;
+        fillEl.style.background = score > 0 ? '#4a90e2' : '#d32f2f';
+        fillEl.style.bottom = score > 0 ? '50%' : '0';
+        fillEl.style.top = score < 0 ? '50%' : 'auto';
+
+        if (mate) {
+          textEl.textContent = mate > 0 ? `#${mate}` : `#${-mate}`;
+        } else {
+          textEl.textContent = score > 0 ? `+${score.toFixed(1)}` : score.toFixed(1);
+        }
+      }
+    }
+  } catch(e) {
+    console.warn('Eval update failed:', e);
+  }
 }
 
 // ────────────────────────────────────────────────────
@@ -642,6 +900,45 @@ function showPromotionModal(color) {
     grid.appendChild(btn);
   });
   showModal('modal-promotion');
+}
+
+// ────────────────────────────────────────────────────
+//  CHESS960
+// ────────────────────────────────────────────────────
+function generateChess960() {
+  // Bishops on different colors
+  const bishops = [];
+  const lightSquares = [1,3,5,7];
+  const darkSquares = [0,2,4,6];
+  const bishopLight = lightSquares[Math.floor(Math.random() * lightSquares.length)];
+  let bishopDark = darkSquares[Math.floor(Math.random() * darkSquares.length)];
+  if (bishopDark === bishopLight) bishopDark = darkSquares[(darkSquares.indexOf(bishopDark) + 1) % darkSquares.length];
+  bishops.push(bishopLight, bishopDark);
+
+  // Queen
+  const remaining = [0,1,2,3,4,5,6,7].filter(i => !bishops.includes(i));
+  const queenPos = remaining[Math.floor(Math.random() * remaining.length)];
+
+  // Knights
+  const afterQueen = remaining.filter(i => i !== queenPos);
+  const knights = [];
+  for (let i = 0; i < 2; i++) {
+    const idx = Math.floor(Math.random() * afterQueen.length);
+    knights.push(afterQueen.splice(idx, 1)[0]);
+  }
+
+  // King and Rooks
+  const lastThree = afterQueen;
+  const backRank = Array(8).fill(null);
+  backRank[bishops[0]] = 'b';
+  backRank[bishops[1]] = 'b';
+  backRank[queenPos] = 'q';
+  knights.forEach(pos => backRank[pos] = 'n');
+  backRank[lastThree[0]] = 'r';
+  backRank[lastThree[1]] = 'k';
+  backRank[lastThree[2]] = 'r';
+
+  return backRank.map(p => p === 'k' ? 'K' : p === 'q' ? 'Q' : p === 'r' ? 'R' : p === 'b' ? 'B' : 'N').join('');
 }
 
 // ────────────────────────────────────────────────────
@@ -686,6 +983,37 @@ async function doBotMove() {
   }
 }
 
+// ────────────────────────────────────────────────────
+//  TOGGLES
+// ────────────────────────────────────────────────────
+function toggleBlindfold() {
+  G.blindfold = !G.blindfold;
+  document.body.classList.toggle('blindfold-mode', G.blindfold);
+  document.getElementById('blindfold-banner').classList.toggle('visible', G.blindfold);
+  localStorage.setItem('chessvibe_blindfold', G.blindfold);
+}
+
+function toggleCoords() {
+  G.coords = !G.coords;
+  renderBoard();
+  localStorage.setItem('chessvibe_coords', G.coords);
+}
+
+function toggleSound() {
+  G.muted = !G.muted;
+  document.getElementById('btn-sound').textContent = G.muted ? '🔇' : '🔊';
+  localStorage.setItem('chessvibe_muted', G.muted);
+}
+
+function toggleLightMode() {
+  G.lightMode = !G.lightMode;
+  document.body.classList.toggle('light-mode', G.lightMode);
+  document.getElementById('btn-theme-toggle').textContent = G.lightMode ? '🌙' : '☀';
+  localStorage.setItem('chessvibe_light', G.lightMode);
+  applyTheme();
+  applyPieceSet();
+}
+
 function fallbackRandomMove() {
   const moves = G.game.moves({ verbose: true });
   if (moves.length === 0) return;
@@ -698,16 +1026,120 @@ function setBotThinking(on) {
 }
 
 // ────────────────────────────────────────────────────
+//  GAUNTLET
+// ────────────────────────────────────────────────────
+function startGauntlet() {
+  G.gauntlet.active = true;
+  G.gauntlet.stage = 1;
+  G.gauntlet.wins = 0;
+  G.gauntlet.losses = 0;
+  hideModal('modal-gauntlet');
+  updateGauntletStages();
+  startGame('bot');
+}
+
+function updateGauntletProgress() {
+  if (!G.gauntlet.active) return;
+  if (G.game.game_over()) {
+    const winner = G.game.in_checkmate() ? (G.game.turn() === 'w' ? 'b' : 'w') : null;
+    if (winner === G.playerColor) {
+      G.gauntlet.wins++;
+      if (G.gauntlet.stage < 5) {
+        // Next stage
+        G.gauntlet.stage++;
+        showGauntletStageClear();
+      } else {
+        // Completed
+        G.gauntlet.completed = true;
+        showGauntletCompleted();
+      }
+    } else {
+      G.gauntlet.losses++;
+      showGauntletFailed();
+    }
+  }
+}
+
+function updateGauntletStages() {
+  document.querySelectorAll('.gauntlet-stage').forEach(stageEl => {
+    const stage = parseInt(stageEl.dataset.stage);
+    stageEl.classList.toggle('locked', stage > G.gauntlet.stage + 1);
+  });
+}
+
+function showGauntletStageClear() {
+  // Show modal for stage clear
+  const modal = document.getElementById('modal-result');
+  const title = document.getElementById('result-title');
+  const reason = document.getElementById('result-reason');
+  const ftr = document.querySelector('.result-ftr');
+
+  title.textContent = `Stage ${G.gauntlet.stage - 1} Cleared!`;
+  reason.textContent = `${G.gauntlet.stageName[G.gauntlet.stage - 2]} Defeated`;
+  ftr.innerHTML = `
+    <button id="btn-continue-gauntlet" class="btn-primary">Continue to Stage ${G.gauntlet.stage}</button>
+    <button id="btn-exit-gauntlet" class="btn-ghost">Exit Gauntlet</button>
+  `;
+  document.getElementById('btn-continue-gauntlet').addEventListener('click', () => {
+    hideModal('modal-result');
+    startGame('bot');
+  });
+  document.getElementById('btn-exit-gauntlet').addEventListener('click', () => {
+    G.gauntlet.active = false;
+    hideModal('modal-result');
+    showScreen('mode-screen');
+  });
+  showModal('modal-result');
+}
+
+function showGauntletCompleted() {
+  const modal = document.getElementById('modal-result');
+  const title = document.getElementById('result-title');
+  const reason = document.getElementById('result-reason');
+  const ftr = document.querySelector('.result-ftr');
+
+  title.textContent = '🏆 Gauntlet Champion!';
+  reason.textContent = 'You defeated all 5 bot levels!';
+  ftr.innerHTML = `<button id="btn-exit-gauntlet" class="btn-ghost">Main Menu</button>`;
+  document.getElementById('btn-exit-gauntlet').addEventListener('click', () => {
+    G.gauntlet.active = false;
+    hideModal('modal-result');
+    showScreen('mode-screen');
+  });
+  showModal('modal-result');
+}
+
+function showGauntletFailed() {
+  const modal = document.getElementById('modal-result');
+  const title = document.getElementById('result-title');
+  const reason = document.getElementById('result-reason');
+  const ftr = document.querySelector('.result-ftr');
+
+  title.textContent = 'Gauntlet Failed';
+  reason.textContent = `Reached Stage ${G.gauntlet.stage}`;
+  ftr.innerHTML = `<button id="btn-retry-gauntlet" class="btn-primary">Retry Gauntlet</button><button id="btn-exit-gauntlet" class="btn-ghost">Main Menu</button>`;
+  document.getElementById('btn-retry-gauntlet').addEventListener('click', startGauntlet);
+  document.getElementById('btn-exit-gauntlet').addEventListener('click', () => {
+    G.gauntlet.active = false;
+    hideModal('modal-result');
+    showScreen('mode-screen');
+  });
+  showModal('modal-result');
+}
+
+// ────────────────────────────────────────────────────
 //  GAME OVER
 // ────────────────────────────────────────────────────
 function checkGameOver() {
   if (!G.game.game_over()) return false;
 
   let result, reason;
+  let winner = null;
 
   if (G.game.in_checkmate()) {
-    const winner = G.game.turn() === 'w' ? 'Black' : 'White';
-    result = `${winner} Wins`;
+    winner = G.game.turn() === 'w' ? 'b' : 'w';
+    const winnerName = winner === 'w' ? 'White' : 'Black';
+    result = `${winnerName} Wins`;
     reason = 'by Checkmate';
     document.querySelector('.board-frame')?.classList.add('game-won');
     playSound('win');
@@ -723,9 +1155,109 @@ function checkGameOver() {
     result = 'Game Over'; reason = '';
   }
 
+  // Update session stats
+  updateSessionStats(winner);
+
+  // Update gauntlet
+  updateGauntletProgress();
+
   stopClock();
+  // Analyze game for accuracy
+  if (G.mode === 'local' || G.mode === 'bot') {
+    setTimeout(() => analyzeGame(), 1000);
+  }
   setTimeout(() => showResultModal(result, reason), 900);
   return true;
+}
+
+function updateSessionStats(winner) {
+  const mode = G.mode === 'online' ? 'online' : G.mode === 'bot' ? 'bot' : 'local';
+  if (winner === 'w') {
+    G.sessionStats[mode].wins++;
+  } else if (winner === 'b') {
+    G.sessionStats[mode].losses++;
+  } else {
+    G.sessionStats[mode].draws++;
+  }
+  if (G.gauntlet.active) {
+    G.sessionStats.gauntlet.attempts++;
+  }
+  saveSessionStats();
+  updateSessionStatsDisplay();
+}
+
+async function analyzeGame() {
+  if (G.gameReport.done) return;
+
+  const history = G.game.history({ verbose: true });
+  const maxMoves = Math.min(history.length, 40);
+  const scores = { w: [], b: [] };
+
+  for (let i = 0; i < maxMoves; i++) {
+    const game = new Chess();
+    for (let j = 0; j < i; j++) {
+      game.move(history[j]);
+    }
+
+    try {
+      const fen = encodeURIComponent(game.fen());
+      const url = `${STOCKFISH_URL}?fen=${fen}&depth=6`;
+      const res = await fetch(url);
+      const data = await res.json();
+
+      if (data.success && data.evaluation) {
+        const played = history[i];
+        const bestMove = data.bestmove;
+        let score = 100;
+
+        if (bestMove && !bestMove.includes(played.from + played.to)) {
+          // Played move differs from best
+          const evalAfter = data.evaluation;
+          // Simplified scoring
+          if (evalAfter && evalAfter.type === 'cp') {
+            const diff = Math.abs(evalAfter.value);
+            if (diff > 300) score = 20;
+            else if (diff > 100) score = 60;
+            else if (diff > 50) score = 80;
+            else score = 95;
+          } else {
+            score = 50; // Mate or something
+          }
+        }
+
+        scores[played.color].push(score);
+      }
+    } catch(e) {
+      console.warn('Analysis failed for move', i, e);
+    }
+
+    // Delay to avoid rate limiting
+    await sleep(400);
+  }
+
+  G.gameReport.w = scores.w.length > 0 ? Math.round(scores.w.reduce((a,b)=>a+b,0) / scores.w.length) : 0;
+  G.gameReport.b = scores.b.length > 0 ? Math.round(scores.b.reduce((a,b)=>a+b,0) / scores.b.length) : 0;
+  G.gameReport.done = true;
+  updateGameReportDisplay();
+}
+
+function updateGameReportDisplay() {
+  if (!G.gameReport.done) return;
+
+  const statsEl = document.getElementById('result-stats');
+  if (!statsEl) return;
+
+  const wAcc = G.gameReport.w;
+  const bAcc = G.gameReport.b;
+  const avgThinkW = G.moveTimes.filter(m => m.color === 'w').reduce((a,b)=>a+b.ms,0) / Math.max(1, G.moveTimes.filter(m => m.color === 'w').length) / 1000;
+  const avgThinkB = G.moveTimes.filter(m => m.color === 'b').reduce((a,b)=>a+b.ms,0) / Math.max(1, G.moveTimes.filter(m => m.color === 'b').length) / 1000;
+
+  statsEl.innerHTML = `
+    <div>Game Report</div>
+    <div>White Accuracy: ${wAcc}% <div class="accuracy-bar-track"><div class="accuracy-bar-fill" style="width:${wAcc}%"></div></div></div>
+    <div>Black Accuracy: ${bAcc}% <div class="accuracy-bar-track"><div class="accuracy-bar-fill" style="width:${bAcc}%"></div></div></div>
+    <div>Avg think time: White ${avgThinkW.toFixed(1)}s · Black ${avgThinkB.toFixed(1)}s</div>
+  `;
 }
 
 // ────────────────────────────────────────────────────
@@ -754,7 +1286,17 @@ function updateMoveHistory() {
 
     const wSpan = document.createElement('span');
     wSpan.className = 'move-san';
-    wSpan.textContent = history[i].san + (G.annotations[i] || '');
+    let text = history[i].san + (G.annotations[i] || '');
+    if (G.moveTimes[i] && G.moveTimes[i].ms > 5000) {
+      const secs = Math.round(G.moveTimes[i].ms / 1000);
+      const timeBadge = document.createElement('span');
+      timeBadge.className = 'move-time-badge' + (G.moveTimes[i].ms > 30000 ? ' slow' : '');
+      timeBadge.textContent = secs + 's';
+      wSpan.appendChild(document.createTextNode(text));
+      wSpan.appendChild(timeBadge);
+    } else {
+      wSpan.textContent = text;
+    }
     wSpan.dataset.moveIdx = i;
     wSpan.addEventListener('click', () => jumpToMove(i));
     wSpan.addEventListener('contextmenu', (e) => showAnnotationMenu(e, i));
@@ -763,7 +1305,17 @@ function updateMoveHistory() {
     if (history[i + 1]) {
       const bSpan = document.createElement('span');
       bSpan.className = 'move-san';
-      bSpan.textContent = history[i + 1].san + (G.annotations[i + 1] || '');
+      let text = history[i + 1].san + (G.annotations[i + 1] || '');
+      if (G.moveTimes[i + 1] && G.moveTimes[i + 1].ms > 5000) {
+        const secs = Math.round(G.moveTimes[i + 1].ms / 1000);
+        const timeBadge = document.createElement('span');
+        timeBadge.className = 'move-time-badge' + (G.moveTimes[i + 1].ms > 30000 ? ' slow' : '');
+        timeBadge.textContent = secs + 's';
+        bSpan.appendChild(document.createTextNode(text));
+        bSpan.appendChild(timeBadge);
+      } else {
+        bSpan.textContent = text;
+      }
       bSpan.dataset.moveIdx = i + 1;
       bSpan.addEventListener('click', () => jumpToMove(i + 1));
       bSpan.addEventListener('contextmenu', (e) => showAnnotationMenu(e, i + 1));
@@ -900,9 +1452,157 @@ function updateCapturedStrips() {
   if (bAdv) bAdv.textContent = bScore > wScore ? `+${bScore - wScore}` : '';
 }
 
+// ────────────────────────────────────────────────────
+//  HINT ARROW
+// ────────────────────────────────────────────────────
+function drawHintArrow(from, to) {
+  const canvas = document.getElementById('hint-canvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const boardEl = document.getElementById('board');
+
+  const rect = boardEl.getBoundingClientRect();
+  canvas.width = rect.width;
+  canvas.height = rect.height;
+
+  const fromSq = document.querySelector(`[data-square="${from}"]`);
+  const toSq = document.querySelector(`[data-square="${to}"]`);
+  if (!fromSq || !toSq) return;
+
+  const fromRect = fromSq.getBoundingClientRect();
+  const toRect = toSq.getBoundingClientRect();
+
+  const centerX = (fromRect.left + fromRect.right) / 2 - rect.left;
+  const centerY = (fromRect.top + fromRect.bottom) / 2 - rect.top;
+  const targetX = (toRect.left + toRect.right) / 2 - rect.left;
+  const targetY = (toRect.top + toRect.bottom) / 2 - rect.top;
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.strokeStyle = 'rgba(255,255,255,0.75)';
+  ctx.lineWidth = 8;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+
+  // Draw line
+  ctx.beginPath();
+  ctx.moveTo(centerX, centerY);
+  ctx.lineTo(targetX, targetY);
+  ctx.stroke();
+
+  // Draw arrowhead
+  const angle = Math.atan2(targetY - centerY, targetX - centerX);
+  const headLen = 20;
+  ctx.beginPath();
+  ctx.moveTo(targetX, targetY);
+  ctx.lineTo(targetX - headLen * Math.cos(angle - Math.PI / 6), targetY - headLen * Math.sin(angle - Math.PI / 6));
+  ctx.moveTo(targetX, targetY);
+  ctx.lineTo(targetX - headLen * Math.cos(angle + Math.PI / 6), targetY - headLen * Math.sin(angle + Math.PI / 6));
+  ctx.stroke();
+}
+
+function clearHint() {
+  const canvas = document.getElementById('hint-canvas');
+  if (canvas) {
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  }
+  if (G.hint.timeout) {
+    clearTimeout(G.hint.timeout);
+    G.hint.timeout = null;
+  }
+  G.hint.active = false;
+}
+
+async function requestHint() {
+  if (G.mode !== 'local' && G.mode !== 'bot') return;
+  if (G.mode === 'bot' && G.game.turn() === G.playerColor) return; // Only during bot's turn
+  if (G.hint.active) return;
+
+  const btn = document.getElementById('btn-hint');
+  if (btn) {
+    btn.textContent = 'thinking...';
+    btn.disabled = true;
+  }
+
+  try {
+    const fen = encodeURIComponent(G.game.fen());
+    const url = `${STOCKFISH_URL}?fen=${fen}&depth=8`;
+    const res = await fetch(url);
+    const data = await res.json();
+
+    if (data.success && data.bestmove) {
+      const raw = String(data.bestmove || '').trim();
+      const match = raw.match(/[a-h][1-8][a-h][1-8]/i);
+      if (match) {
+        const from = match[0].substring(0, 2);
+        const to = match[0].substring(2, 4);
+        G.hint.from = from;
+        G.hint.to = to;
+        G.hint.active = true;
+        drawHintArrow(from, to);
+        G.hint.timeout = setTimeout(clearHint, 4000);
+      }
+    }
+  } catch(e) {
+    console.warn('Hint failed:', e);
+  } finally {
+    if (btn) {
+      btn.textContent = 'Hint';
+      btn.disabled = false;
+    }
+  }
+}
+
 function sortCaptured(arr) {
   const order = ['q','r','b','n','p'];
   return [...arr].sort((a, b) => order.indexOf(a) - order.indexOf(b));
+}
+
+// ────────────────────────────────────────────────────
+//  SESSION STATS
+// ────────────────────────────────────────────────────
+function saveSessionStats() {
+  localStorage.setItem('chessvibe_session_stats', JSON.stringify(G.sessionStats));
+}
+
+function loadSessionStats() {
+  const data = localStorage.getItem('chessvibe_session_stats');
+  if (data) {
+    try {
+      G.sessionStats = { ...G.sessionStats, ...JSON.parse(data) };
+    } catch(e) {}
+  }
+}
+
+function updateSessionStatsDisplay() {
+  const el = document.getElementById('session-stats-bar');
+  if (!el) return;
+
+  const stats = G.sessionStats;
+  const parts = [];
+  if (stats.local.wins + stats.local.losses + stats.local.draws > 0) {
+    parts.push(`Local: ${stats.local.wins}W ${stats.local.losses}L ${stats.local.draws}D`);
+  }
+  if (stats.bot.wins + stats.bot.losses + stats.bot.draws > 0) {
+    parts.push(`Bot: ${stats.bot.wins}W ${stats.bot.losses}L ${stats.bot.draws}D`);
+  }
+  if (stats.online.wins + stats.online.losses + stats.online.draws > 0) {
+    parts.push(`Online: ${stats.online.wins}W ${stats.online.losses}L ${stats.online.draws}D`);
+  }
+
+  el.textContent = parts.length > 0 ? `Session · ${parts.join(' · ')}` : '';
+  el.style.display = parts.length > 0 ? 'block' : 'none';
+}
+
+function resetSessionStats() {
+  G.sessionStats = {
+    local: { wins: 0, losses: 0, draws: 0 },
+    bot: { wins: 0, losses: 0, draws: 0 },
+    online: { wins: 0, losses: 0, draws: 0 },
+    gauntlet: { stagesCleared: 0, attempts: 0 }
+  };
+  saveSessionStats();
+  updateSessionStatsDisplay();
 }
 
 // ────────────────────────────────────────────────────
@@ -950,7 +1650,44 @@ function renderTimers() {
     el.textContent = `${mins}:${secs}`;
     el.classList.toggle('timer-low', t < 30 && G.timerOn);
     el.classList.toggle('timer-pill-active', G.activeClk === color);
+    el.classList.toggle('bullet-mode', G.bulletMode);
   });
+}
+
+function togglePause() {
+  if (G.mode === 'local' || G.mode === 'bot') {
+    G.timers.paused = !G.timers.paused;
+    if (G.timers.paused) {
+      stopClock();
+      document.getElementById('btn-pause').textContent = 'Resume';
+      // Show pause overlay
+      let overlay = document.getElementById('pause-overlay');
+      if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'pause-overlay';
+        overlay.style.position = 'absolute';
+        overlay.style.top = '0';
+        overlay.style.left = '0';
+        overlay.style.width = '100%';
+        overlay.style.height = '100%';
+        overlay.style.background = 'rgba(0,0,0,0.5)';
+        overlay.style.display = 'flex';
+        overlay.style.alignItems = 'center';
+        overlay.style.justifyContent = 'center';
+        overlay.style.fontSize = '2rem';
+        overlay.style.color = 'white';
+        overlay.style.zIndex = '1000';
+        overlay.textContent = 'Paused';
+        document.getElementById('board').appendChild(overlay);
+      }
+      overlay.style.display = 'flex';
+    } else {
+      startClock();
+      document.getElementById('btn-pause').textContent = 'Pause';
+      const overlay = document.getElementById('pause-overlay');
+      if (overlay) overlay.style.display = 'none';
+    }
+  }
 }
 
 // ────────────────────────────────────────────────────
@@ -1191,6 +1928,7 @@ function initPeer(asHost, code, asSpectator = false) {
   if (G.peer) { try { G.peer.destroy(); } catch(_){} G.peer = null; }
 
   const peerId = 'chessvibe-' + code;
+  G.roomCode = code;
 
   G.peer = new Peer(asHost ? peerId : undefined, {
     host: '0.peerjs.com',
@@ -1301,6 +2039,41 @@ function broadcastToSpectators(data) {
   });
 }
 
+function executeTakeback() {
+  G.game.undo();
+  G.game.undo();
+  G.lastMove = null;
+  G.flipped = !G.flipped;
+  clearHint();
+  renderBoard();
+  updateMoveHistory();
+  updateBreadcrumb();
+  // Adjust timers
+  if (G.timerOn && G.increment > 0) {
+    G.timers.w += G.increment * 2;
+    G.timers.b += G.increment * 2;
+    renderTimers();
+  }
+}
+
+function executeUndo() {
+  if (G.mode !== 'local' || G.game.history().length === 0) return;
+  G.game.undo();
+  if (G.game.history().length > 0) G.game.undo();
+  G.lastMove = null;
+  G.flipped = !G.flipped;
+  clearHint();
+  renderBoard();
+  updateMoveHistory();
+  updateBreadcrumb();
+  // Adjust timers
+  if (G.timerOn && G.increment > 0) {
+    G.timers.w += G.increment * 2;
+    G.timers.b += G.increment * 2;
+    renderTimers();
+  }
+}
+
 function handleOnlineData(data) {
   switch (data.type) {
     case 'handshake':
@@ -1352,6 +2125,35 @@ function handleOnlineData(data) {
     case 'draw-decline':
       if (!G.isSpectator) alert('Draw offer declined.');
       break;
+
+    case 'takeback-request':
+      if (!G.isSpectator) showModal('modal-takeback-request');
+      break;
+
+    case 'takeback-accept':
+      executeTakeback();
+      break;
+
+    case 'takeback-decline':
+      showNotification('Takeback declined.');
+      break;
+
+    case 'rematch-request':
+      if (!G.isSpectator) showModal('modal-rematch-request');
+      break;
+
+    case 'rematch-accept':
+      hideModal('modal-result');
+      startGame('online');
+      break;
+
+    case 'rematch-decline':
+      showNotification('Rematch declined.');
+      break;
+
+    case 'chat':
+      appendChatMessage(data.name, data.text, false);
+      break;
   }
 }
 
@@ -1364,15 +2166,54 @@ function setOnlineStatus(tab, msg, state) {
 }
 
 // ────────────────────────────────────────────────────
+//  CHAT
+// ────────────────────────────────────────────────────
+function appendChatMessage(name, text, isSelf) {
+  const messagesEl = document.getElementById('chat-messages');
+  if (!messagesEl) return;
+
+  const msgEl = document.createElement('div');
+  msgEl.className = 'chat-msg' + (isSelf ? ' chat-msg-self' : '');
+  msgEl.innerHTML = `<span class="chat-name">${name}:</span> ${text}`;
+  messagesEl.appendChild(msgEl);
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+
+  // Limit to 50 messages
+  while (messagesEl.children.length > 50) {
+    messagesEl.removeChild(messagesEl.firstChild);
+  }
+}
+
+function sendChatMessage() {
+  const input = document.getElementById('chat-input');
+  if (!input) return;
+  const text = input.value.trim();
+  if (!text) return;
+
+  const name = G.playerColor === 'w' ? 'White' : 'Black';
+  if (G.conn) {
+    G.conn.send({ type: 'chat', name, text });
+  }
+  appendChatMessage(name, text, true);
+  input.value = '';
+}
+
+// ────────────────────────────────────────────────────
 //  GAME INITIALIZATION
 // ────────────────────────────────────────────────────
 function startGame(mode) {
   // Hide all active modals and overlay directly
   document.querySelectorAll('.modal.active').forEach(m => m.classList.remove('active'));
   document.getElementById('modal-overlay')?.classList.remove('active');
-  
+
   document.querySelector('.board-frame')?.classList.remove('game-won');
-  G.game       = new Chess();
+  if (G.chess960 && mode === 'local') {
+    const backRank = generateChess960();
+    const fen = `${backRank}/pppppppp/8/8/8/8/PPPPPPPP/${backRank.toLowerCase()} w KQkq - 0 1`;
+    G.game = new Chess(fen);
+  } else {
+    G.game = new Chess();
+  }
   G.mode       = mode;
   G.selected   = null;
   G.legalMoves = [];
@@ -1385,6 +2226,19 @@ function startGame(mode) {
   G.preMove    = null;
   G.annotations = {};
   G.inited     = true;
+
+  // Reset new features
+  G.hint = { active: false, from: null, to: null, timeout: null };
+  G.gameReport = { w: null, b: null, done: false };
+  G.currentEval = { score: 0, mate: null };
+  G.currentOpening = null;
+  G.chess960 = false;
+  G.blindfold = false;
+  G.moveTimes = [];
+  G.moveStartTime = null;
+  clearHint();
+  document.body.classList.remove('blindfold-mode');
+  document.getElementById('blindfold-banner').classList.remove('visible');
 
   // Reset board orientation
   if (mode === 'online') {
@@ -1406,6 +2260,7 @@ function startGame(mode) {
     G.timers = { w: timerSec, b: timerSec };
   }
   G.timerOn = timerSec > 0;
+  G.bulletMode = timerSec <= 60 && timerSec > 0;
   renderTimers();
 
   // Show game screen
@@ -1459,7 +2314,9 @@ function startGame(mode) {
 function modeLabel(mode) {
   if (G.isSpectator) return 'Spectate';
   const labels = { local:'Local 2P', bot:'vs Stockfish', online:'Online 1v1' };
-  return labels[mode] || mode;
+  let label = labels[mode] || mode;
+  if (G.chess960) label += ' • 960';
+  return label;
 }
 
 function getSelectedTimer(mode) {
@@ -1590,13 +2447,37 @@ function showScreen(id) {
 }
 
 function showNavButtons(inGame) {
-  const btns = ['theme-select','piece-select','btn-sound','btn-fullscreen','btn-flip','btn-resign','btn-new-game'];
+  const btns = ['theme-select','piece-select','btn-sound','btn-fullscreen','btn-flip','btn-resign','btn-new-game','btn-theme-toggle'];
   btns.forEach(id => document.getElementById(id)?.classList.toggle('hidden', !inGame));
+
+  // Show action buttons based on mode
+  const actionBtns = ['btn-hint','btn-takeback','btn-pause','btn-blindfold','btn-undo','btn-offer-draw','btn-coords'];
+  actionBtns.forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.classList.add('hidden'); // Hide all first
+    if (inGame) {
+      if (id === 'btn-hint' && (G.mode === 'local' || G.mode === 'bot')) el.classList.remove('hidden');
+      if (id === 'btn-takeback' && G.mode === 'online') el.classList.remove('hidden');
+      if (id === 'btn-pause' && (G.mode === 'local' || G.mode === 'bot')) el.classList.remove('hidden');
+      if (id === 'btn-blindfold') el.classList.remove('hidden');
+      if (id === 'btn-undo' && G.mode === 'local') el.classList.remove('hidden');
+      if (id === 'btn-offer-draw') el.classList.remove('hidden');
+      if (id === 'btn-coords') el.classList.remove('hidden');
+    }
+  });
+
+  // Show chat in online mode
+  document.getElementById('chat-panel')?.classList.toggle('hidden', !inGame || G.mode !== 'online');
 }
 
 function setNavGameMode(label) {
   const el = document.getElementById('nav-game-mode');
-  if (el) el.textContent = label ? `♟ ${label}` : '';
+  if (el) {
+    let text = label ? `♟ ${label}` : '';
+    if (G.bulletMode) text = `<span class="bullet-dot"></span>Bullet • ${label}`;
+    el.innerHTML = text;
+  }
 }
 
 function generateRoomCode() {
@@ -1614,9 +2495,14 @@ function init() {
 
   // Load settings from localStorage
   G.theme = localStorage.getItem('chessvibe_theme') || 'classic';
-  G.pieceSet = localStorage.getItem('chessvibe_pieceSet') || 'modern';
+  G.pieceSet = localStorage.getItem('chessvibe_pieceSet') || 'unicode';
   G.muted = localStorage.getItem('chessvibe_muted') === 'true';
   G.coords = localStorage.getItem('chessvibe_coords') !== 'false'; // default true
+  G.lightMode = localStorage.getItem('chessvibe_light') === 'true';
+  G.blindfold = localStorage.getItem('chessvibe_blindfold') === 'true';
+  loadSessionStats();
+  if (G.lightMode) document.body.classList.add('light-mode');
+  document.getElementById('btn-theme-toggle').textContent = G.lightMode ? '🌙' : '☀';
 
   // Apply settings
   applyTheme();
@@ -1631,16 +2517,50 @@ function init() {
     if (btn) btn.textContent = document.fullscreenElement ? '⛶' : '⛶';
   });
 
-  // ── Loader → Mode Screen ──────────────────────────
-  setTimeout(() => {
-    document.getElementById('loader')?.classList.add('hidden');
-    showScreen('mode-screen');
-    // Staggered card animation
-    document.querySelectorAll('.mode-card').forEach((card, i) => {
-      card.style.animationDelay = `${i * 0.12}s`;
-      card.classList.add('animate-in');
-    });
-  }, 1700);
+  // Check URL parameters
+  const urlParams = new URLSearchParams(window.location.search);
+  const pgnParam = urlParams.get('pgn');
+  const roomParam = urlParams.get('room');
+
+  if (pgnParam) {
+    // Load shared game
+    try {
+      const pgn = decodePGN(pgnParam);
+      G.game = new Chess();
+      G.game.load_pgn(pgn);
+      // Show result modal with game info
+      const result = G.game.in_checkmate() ? 'Checkmate' : G.game.in_draw() ? 'Draw' : 'Ongoing';
+      showResultModal(result, 'Shared Game');
+      // Switch to game screen
+      showScreen('game-screen');
+      renderBoard();
+      updateMoveHistory();
+      // Disable interactions for replay
+      document.getElementById('btn-new-game').classList.remove('hidden');
+      document.getElementById('btn-exit-game').textContent = 'Play Now';
+    } catch(e) {
+      console.warn('Invalid PGN:', e);
+    }
+  } else if (roomParam) {
+    // Auto-join room
+    setTimeout(() => {
+      showModal('modal-online');
+      document.querySelector('[data-tab="join"]').click();
+      document.getElementById('join-code-input').value = roomParam;
+      setTimeout(() => document.getElementById('btn-join-room').click(), 500);
+    }, 1700);
+  } else {
+    // Normal load
+    setTimeout(() => {
+      document.getElementById('loader')?.classList.add('hidden');
+      showScreen('mode-screen');
+      // Staggered card animation
+      document.querySelectorAll('.mode-card').forEach((card, i) => {
+        card.style.animationDelay = `${i * 0.12}s`;
+        card.classList.add('animate-in');
+      });
+    }, 1700);
+  }
 
   // ── Mode Card Clicks ──────────────────────────────
   document.querySelectorAll('.mode-card').forEach(card => {
@@ -1652,6 +2572,11 @@ function init() {
         showModal('modal-bot');
       } else if (mode === 'online') {
         showModal('modal-online');
+      } else if (mode === 'chess960') {
+        showModal('modal-local-timer'); // Reuse for Chess960
+        G.chess960 = true;
+      } else if (mode === 'gauntlet') {
+        showModal('modal-gauntlet');
       }
     });
   });
@@ -1789,6 +2714,9 @@ function init() {
     G.roomCode  = code;
     document.getElementById('rc-value').textContent = code;
     document.getElementById('room-code-box')?.classList.remove('hidden');
+    const inviteURL = `${location.origin}${location.pathname}?room=${code}`;
+    document.getElementById('invite-url-text').textContent = inviteURL;
+    document.getElementById('invite-url-row')?.classList.remove('hidden');
     setOnlineStatus('create', '⏳ Initializing connection…', '');
     initPeer(true, code);
   });
@@ -1998,6 +2926,88 @@ function init() {
     renderBoard();
     localStorage.setItem('chessvibe_coords', G.coords);
   });
+
+  // ── New Feature Toggles ────────────────────────────
+  document.getElementById('btn-theme-toggle')?.addEventListener('click', toggleLightMode);
+  document.getElementById('btn-hint')?.addEventListener('click', requestHint);
+  document.getElementById('btn-takeback')?.addEventListener('click', () => {
+    if (G.mode === 'online' && G.conn && G.onlineReady) {
+      G.conn.send({ type:'takeback-request' });
+      const btn = document.getElementById('btn-takeback');
+      btn.textContent = 'Request Sent…';
+      btn.disabled = true;
+    }
+  });
+  document.getElementById('btn-pause')?.addEventListener('click', togglePause);
+  document.getElementById('btn-blindfold')?.addEventListener('click', toggleBlindfold);
+  document.getElementById('btn-undo')?.addEventListener('click', executeUndo);
+
+  // ── Chat ───────────────────────────────────────────
+  document.getElementById('chat-input')?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') sendChatMessage();
+  });
+  document.getElementById('btn-send-chat')?.addEventListener('click', sendChatMessage);
+
+  // ── Gauntlet ───────────────────────────────────────
+  document.getElementById('btn-start-gauntlet')?.addEventListener('click', startGauntlet);
+
+  // ── Takeback Modal ────────────────────────────────
+  document.getElementById('btn-accept-takeback')?.addEventListener('click', () => {
+    hideModal('modal-takeback-request');
+    if (G.mode === 'online' && G.conn) {
+      G.conn.send({ type:'takeback-accept' });
+    }
+    executeTakeback();
+  });
+  document.getElementById('btn-decline-takeback')?.addEventListener('click', () => {
+    hideModal('modal-takeback-request');
+    if (G.mode === 'online' && G.conn) {
+      G.conn.send({ type:'takeback-decline' });
+    }
+  });
+
+  // ── Rematch Modal ──────────────────────────────────
+  document.getElementById('btn-accept-rematch')?.addEventListener('click', () => {
+    hideModal('modal-rematch-request');
+    if (G.mode === 'online' && G.conn) {
+      G.conn.send({ type:'rematch-accept' });
+    }
+  });
+  document.getElementById('btn-decline-rematch')?.addEventListener('click', () => {
+    hideModal('modal-rematch-request');
+    if (G.mode === 'online' && G.conn) {
+      G.conn.send({ type:'rematch-decline' });
+    }
+  });
+
+  // ── Share & Download ───────────────────────────────
+  document.getElementById('btn-share-pgn')?.addEventListener('click', shareGame);
+  document.getElementById('btn-download-pgn')?.addEventListener('click', downloadPGN);
+
+  // ── Copy Invite ────────────────────────────────────
+  document.getElementById('btn-copy-invite')?.addEventListener('click', () => {
+    const text = document.getElementById('invite-url-text').textContent;
+    navigator.clipboard.writeText(text).then(() => {
+      const btn = document.getElementById('btn-copy-invite');
+      btn.textContent = '✓ Copied!';
+      setTimeout(() => btn.textContent = 'Copy Invite', 2000);
+    });
+  });
+
+  // ── Session Stats Reset ────────────────────────────
+  // Add reset link to session stats bar
+  const sessionBar = document.getElementById('session-stats-bar');
+  if (sessionBar) {
+    const resetLink = document.createElement('a');
+    resetLink.href = '#';
+    resetLink.textContent = 'Reset';
+    resetLink.style.cssText = 'margin-left:8px; color:var(--text-muted); text-decoration:none; font-size:0.7rem;';
+    resetLink.addEventListener('click', (e) => {
+      e.preventDefault();
+      resetSessionStats();
+    });
+    sessionBar.appendChild(resetLink);
+  }
 
   // ── Context Menu Items ─────────────────────────────
   document.querySelectorAll('.context-item').forEach(item => {
