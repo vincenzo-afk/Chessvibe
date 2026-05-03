@@ -247,6 +247,12 @@ function applyTheme() {
   const theme = THEMES[G.theme];
   if (!theme) return;
 
+  // Remove previous theme class
+  document.body.className = document.body.className.replace(/theme-\w+/g, '');
+
+  // Add new theme class
+  document.body.classList.add(`theme-${G.theme}`);
+
   document.documentElement.style.setProperty('--sq-light', theme.light);
   document.documentElement.style.setProperty('--sq-dark', theme.dark);
 
@@ -254,8 +260,19 @@ function applyTheme() {
   localStorage.setItem('chessvibe_theme', G.theme);
 }
 
+function getPieceColor(isWhite, theme) {
+  const themeColors = {
+    classic:  { w: '#ffffff', b: '#0a0a0a' },
+    forest:   { w: '#2d5a1c', b: '#ffffff' },
+    ocean:    { w: '#1a4d5a', b: '#ffffff' },
+    candy:    { w: '#8b1a5a', b: '#ffffff' },
+    midnight: { w: '#ffffff', b: '#e8eaf6' },
+  };
+  return themeColors[theme || G.theme][isWhite ? 'w' : 'b'];
+}
+
 function applyPieceSet() {
-  // Re-render board to apply new piece set
+  // Re-render board to apply new piece set and theme-based colors
   renderBoard();
 
   // Save to localStorage
@@ -576,7 +593,6 @@ function executeMove(from, to, promotion) {
   }
 
   return true;
-}
 }
 
 // ────────────────────────────────────────────────────
@@ -969,8 +985,9 @@ function onDragStart(e) {
   drag.ghost = document.createElement('div');
   drag.ghost.className = 'drag-ghost';
   drag.ghost.textContent = pieceEl.textContent;
-  drag.ghost.style.color = pieceEl.classList.contains('piece-w') ? '#f5f0e8' : '#1a1510';
-  drag.ghost.style.webkitTextStroke = pieceEl.classList.contains('piece-w') ? '1.5px #8a7050' : '1px #4a3828';
+  const isWhite = pieceEl.classList.contains('piece-w');
+  drag.ghost.style.color = getPieceColor(isWhite, G.theme);
+  drag.ghost.style.webkitTextStroke = isWhite ? '1.5px #000000' : '1.5px #555555';
   updateGhostPos(e.clientX, e.clientY);
   document.body.appendChild(drag.ghost);
   pieceEl.style.opacity = '0.25';
