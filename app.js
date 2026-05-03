@@ -25,6 +25,11 @@ const PIECE_SVG_URLS = {
   bk: 'https://upload.wikimedia.org/wikipedia/commons/f/f0/Chess_kdt45.svg',
 };
 
+const PIECE_UNICODE = {
+  wk:'♔', wq:'♕', wr:'♖', wb:'♗', wn:'♘', wp:'♙',
+  bk:'♚', bq:'♛', br:'♜', bb:'♝', bn:'♞', bp:'♟',
+};
+
 const PIECE_VALUES  = { p:1, n:3, b:3, r:5, q:9, k:0 };
 
 const STOCKFISH_URL = 'https://stockfish.online/api/s/v2.php';
