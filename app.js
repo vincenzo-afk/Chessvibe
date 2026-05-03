@@ -2014,7 +2014,6 @@ function initPeer(asHost, code, asSpectator = false) {
     });
   }
 }
-}
 
 function wireConnection(conn) {
   conn.on('data', handleOnlineData);
