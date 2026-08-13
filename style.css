@@ -26,14 +26,16 @@
   --text-dim:   #9b9b97;     /* secondary text */
   --text-muted: #5a5a57;     /* placeholder / label */
 
-  /* Board squares — Notion black/white */
-  --sq-light:   #f0ede6;     /* warm off-white */
-  --sq-dark:    #2d2d2d;     /* near black */
-  --sq-select:  rgba(255,255,255,0.28);
-  --sq-legal:   rgba(255,255,255,0.20);
-  --sq-lastmove:rgba(255,255,255,0.15);
+  /* Board squares — Wikipedia classic green/cream */
+  --sq-light:   #ebecd0;     /* warm cream */
+  --sq-dark:    #779556;     /* classic green */
+  --sq-select:  rgba(155,199,0,0.60);
+  --sq-legal:   rgba(20,85,30,0.28);
+  --sq-lastmove:rgba(255,255,51,0.32);
   --sq-check:   rgba(220,53,53,0.55);
   --sq-drag:    rgba(255,255,255,0.12);
+  --piece-dark: #161512;     /* wikipedia black pieces */
+  --piece-light:#ffffff;     /* wikipedia white pieces */
 
   /* Status colors — keep muted */
   --danger:     #e55;
@@ -102,12 +104,11 @@ body.light-mode .btn-primary:hover {
   background: #2b2a27;
 }
 body.light-mode .piece-w {
-  color: #f5f5f5;
-  -webkit-text-stroke: 1.8px #37352f;
+  color: #ffffff;
+  text-shadow: 0 0 2px rgba(0,0,0,0.9), 0 0 6px rgba(0,0,0,0.55);
 }
 body.light-mode .piece-b {
-  color: #37352f;
-  -webkit-text-stroke: 1.5px #888;
+  color: #161512;
 }
 
 /* ── Reset ─────────────────────────────────────────── */
@@ -468,8 +469,10 @@ a { color: var(--accent); }
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
-  padding: 64px 16px 24px;
+  padding: 56px 12px 12px;
   min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
 }
 
 .game-layout {
@@ -480,10 +483,11 @@ a { color: var(--accent); }
     "player-top   board   side"
     "player-top   board   side"
     "player-bot   board   side";
-  gap: 12px;
+  gap: 10px;
   width: 100%;
-  max-width: 1100px;
-  align-items: start;
+  height: 100%;
+  max-width: 1300px;
+  align-items: stretch;
 }
 
 /* ── Player Bars ──────────────────────────────────── */
@@ -576,8 +580,12 @@ a { color: var(--accent); }
 .board-area {
   grid-area: board;
   display: flex; flex-direction: row;
-  align-items: flex-start;
+  align-items: center;
+  justify-content: center;
   gap: 8px;
+  min-height: 0;
+  min-width: 0;
+  align-self: stretch;
 }
 
 /* ── Move Breadcrumb ───────────────────────────────── */
@@ -639,8 +647,8 @@ a { color: var(--accent); }
   display: grid;
   grid-template-columns: repeat(8, 1fr);
   grid-template-rows: repeat(8, 1fr);
-  width: min(64vw, 520px, 80vh - 120px);
-  height: min(64vw, 520px, 80vh - 120px);
+  width: min(100vw - 420px, calc(100vh - 180px), 900px);
+  height: min(100vw - 420px, calc(100vh - 180px), 900px);
   user-select: none;
   touch-action: none;
   transition: transform 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
@@ -717,8 +725,8 @@ a { color: var(--accent); }
   font-family: var(--font-mono);
   opacity: 0.4;
 }
-.square.light .coord-rank, .square.light .coord-file { color: #2d2d2d; }
-.square.dark .coord-rank, .square.dark .coord-file { color: #f0ede6; }
+.square.light .coord-rank, .square.light .coord-file { color: #779556; }
+.square.dark .coord-rank, .square.dark .coord-file { color: #ebecd0; }
 
 /* ── Pieces ───────────────────────────────────────── */
 .piece {
@@ -732,13 +740,13 @@ a { color: var(--accent); }
   position: relative;
   z-index: 10;
   transition: transform 0.1s var(--transition);
-  font-size: calc(min(64vw, 520px) / 8 * 0.86);
+  font-size: calc(min(100vw - 420px, calc(100vh - 180px), 900px) / 8 * 0.94);
   line-height: 1;
   font-weight: 400;
   text-shadow: none;
   filter: none;
 }
-.piece:active { cursor: grabbing; transform: scale(1.15); }
+.piece:active { cursor: grabbing; transform: scale(1.08); }
 
 .piece-img {
   width: 88%;
@@ -750,17 +758,17 @@ a { color: var(--accent); }
 }
 
 .piece-w {
-  color: #f5f5f5;
-  -webkit-text-stroke: 1.8px #111111;
-  text-shadow: none;
-  filter: drop-shadow(0 1px 3px rgba(0,0,0,0.85));
+  color: var(--piece-light);
+  text-shadow:
+    0 0 2px rgba(0,0,0,0.9),
+    0 0 6px rgba(0,0,0,0.55);
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.75));
 }
 
 .piece-b {
-  color: #111111;
-  -webkit-text-stroke: 1.5px #888888;
-  text-shadow: none;
-  filter: drop-shadow(0 1px 3px rgba(0,0,0,0.6));
+  color: var(--piece-dark);
+  text-shadow: 0 0 1px rgba(255,255,255,0.15);
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.4));
 }
 
 .square.selected .piece {
@@ -999,7 +1007,7 @@ a { color: var(--accent); }
 .replay-exit-btn:hover { background: rgba(255,255,255,0.09); }
 
 /* ── Action Row ───────────────────────────── */
-.action-row { display: flex; gap: 8px; }
+.action-row { display: flex; flex-wrap: wrap; gap: 8px; }
 .action-btn {
   flex: 1;
   padding: 8px 10px;
@@ -1049,8 +1057,8 @@ a { color: var(--accent); }
   padding: 0;
   overflow: hidden;
   box-shadow: 0 8px 32px rgba(0,0,0,0.6);
-  min-width: 340px;
-  max-width: 440px;
+  min-width: min(340px, 92vw);
+  max-width: min(440px, 92vw);
   width: 90vw;
 }
 
@@ -1490,14 +1498,44 @@ a { color: var(--accent); }
   }
   .player-bar {
     width: 100%;
-    max-width: min(94vw, 500px);
+    max-width: min(96vw, 560px);
     margin: 0 auto;
+    padding: 6px 10px;
+    gap: 8px;
   }
+  .timer-pill {
+    min-width: 58px;
+    padding: 4px 10px;
+    font-size: 0.85rem;
+  }
+  .captured-strip { min-height: 15px; }
   #board {
-    width: min(94vw, 500px);
-    height: min(94vw, 500px);
+    width: min(96vw, calc(100dvh - 250px));
+    height: min(96vw, calc(100dvh - 250px));
   }
-  #game-screen { padding: 56px 8px 24px; }
+  #game-screen {
+    padding: 52px 6px 8px;
+    height: 100dvh;
+  }
+  .eval-bar {
+    display: none !important;
+  }
+  .breadcrumb-bar {
+    display: none !important;
+  }
+  .side-panel {
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+  .action-row {
+    justify-content: center;
+  }
+  .action-btn {
+    flex: 1 1 30%;
+    min-width: 90px;
+    font-size: 0.72rem;
+    white-space: nowrap;
+  }
 }
 
 @media (max-width: 600px) {
@@ -1512,7 +1550,7 @@ a { color: var(--accent); }
   .modal-ftr { padding: 12px; }
   .form-lbl { font-size: 0.65rem; }
   .color-tile { padding: 8px; font-size: 0.75rem; }
-  .piece { font-size: calc(94vw / 8 * 0.85); }
+  .piece { font-size: calc(min(96vw, calc(100dvh - 250px)) / 8 * 0.94); }
 }
 
 @media (max-width: 400px) {

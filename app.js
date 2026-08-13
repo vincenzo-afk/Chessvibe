@@ -169,7 +169,8 @@ function downloadPGN() {
 //  THEMES & PIECE SETS
 // ────────────────────────────────────────────────────
 const THEMES = {
-  classic:  { light: '#f0ede6', dark: '#2d2d2d' }, // Notion B&W
+  wiki:     { light: '#ebecd0', dark: '#779556' }, // Wikipedia classic green/cream
+  classic:  { light: '#f0ede6', dark: '#2d2d2d' }, // B&W
 };
 
 const PIECE_SETS = {
@@ -2589,7 +2590,7 @@ function init() {
   initAudio();
 
   // Load settings from localStorage
-  G.theme = localStorage.getItem('chessvibe_theme') || 'classic';
+  G.theme = localStorage.getItem('chessvibe_theme') || 'wiki';
   G.pieceSet = localStorage.getItem('chessvibe_pieceSet') || 'unicode';
   G.muted = localStorage.getItem('chessvibe_muted') === 'true';
   G.coords = localStorage.getItem('chessvibe_coords') !== 'false'; // default true
