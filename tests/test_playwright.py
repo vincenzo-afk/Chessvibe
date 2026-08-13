@@ -71,7 +71,10 @@ def main():
             return page.evaluate("""() => {
                 const at = (s) => {
                     const el = document.querySelector(`.square[data-square="${s}"] .piece`);
-                    return el ? el.textContent.trim() : '';
+                    if (!el) return '';
+                    const img = el.querySelector('img');
+                    if (img) return img.getAttribute('src') || '';
+                    return el.textContent.trim();
                 };
                 const G = Function('return G')();
                 if (!G || !G.game) return {ok: false};
@@ -89,7 +92,7 @@ def main():
         s = board_state()
         print("after e2-e4 dbg:", dbg)
         print("after e2-e4:", json.dumps(s, indent=2))
-        e4_just_after = s and s["ok"] and s["history"] == 1 and s["e4"] == "♙" and s["e2"] == ""
+        e4_just_after = s and s["ok"] and s["history"] == 1 and s["e4"] == "assets/pieces/wp.svg" and s["e2"] == ""
         results.append(("click_move_e2e4", e4_just_after, s))
 
         # Black pawn move test (after flip, black moves): click a7 -> a5 (legal black pawn push)
@@ -98,7 +101,7 @@ def main():
         page.wait_for_timeout(500)
         s = board_state()
         print("after a7-a5:", json.dumps(s, indent=2))
-        results.append(("black_move_a7a5", s and s["ok"] and s["history"] == 2 and s["a5"] == "♟" and s["a7"] == "" and s["turn"] == "w", s))
+        results.append(("black_move_a7a5", s and s["ok"] and s["history"] == 2 and s["a5"] == "assets/pieces/bp.svg" and s["a7"] == "" and s["turn"] == "w", s))
 
         # 7. Illegal move rejected: knight g1 -> b4 illegal; g1 should still hold the knight
         sq(page, "g1")
@@ -106,7 +109,7 @@ def main():
         page.wait_for_timeout(500)
         s = board_state()
         print("after illegal g1-b4:", json.dumps(s, indent=2))
-        results.append(("illegal_move_rejected", s and s["ok"] and s["history"] == 2 and s["g1"] == "♘" and s["b4"] == "", s))
+        results.append(("illegal_move_rejected", s and s["ok"] and s["history"] == 2 and s["g1"] == "assets/pieces/wn.svg" and s["b4"] == "", s))
 
         # 8. Drag e4 pawn -> e5 (legal); board flips after, so check g5 display? Verify via G.game + history
         ok = page.evaluate("""() => {
@@ -117,6 +120,7 @@ def main():
             const o1 = {bubbles:true,cancelable:true,pointerId:1,clientX:fr.x+fr.width/2,clientY:fr.y+fr.height/2};
             const o2 = {bubbles:true,cancelable:true,pointerId:1,clientX:tr.x+tr.width/2,clientY:tr.y+tr.height/2};
             fromPiece.dispatchEvent(new MouseEvent('mousedown', {bubbles:true,cancelable:true,clientX:o1.clientX,clientY:o1.clientY}));
+            document.dispatchEvent(new MouseEvent('mousemove', {bubbles:true,cancelable:true,clientX:o1.clientX,clientY:o1.clientY}));
             document.dispatchEvent(new MouseEvent('mousemove', {bubbles:true,cancelable:true,clientX:o2.clientX,clientY:o2.clientY}));
             document.dispatchEvent(new MouseEvent('mouseup', {bubbles:true,cancelable:true,clientX:o2.clientX,clientY:o2.clientY}));
             return 'dragged';
@@ -124,7 +128,7 @@ def main():
         page.wait_for_timeout(500)
         s = board_state()
         print("drag e4->e5:", ok, json.dumps(s, indent=2))
-        drag_ok = ok == "dragged" and s and s["ok"] and s["history"] == 3 and s["e5"] == "♙" and s["e4"] == ""
+        drag_ok = ok == "dragged" and s and s["ok"] and s["history"] == 3 and s["e5"] == "assets/pieces/wp.svg" and s["e4"] == ""
         results.append(("drag_move_e4e5", drag_ok, str({"drag": ok, **s} if s else None)))
 
         # 9. Bot mode smoke test

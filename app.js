@@ -10,6 +10,13 @@
 // ────────────────────────────────────────────────────
 const FILES = ['a','b','c','d','e','f','g','h'];
 
+const PIECE_SVG_LOCAL = {
+  wp: 'assets/pieces/wp.svg', wn: 'assets/pieces/wn.svg', wb: 'assets/pieces/wb.svg',
+  wr: 'assets/pieces/wr.svg', wq: 'assets/pieces/wq.svg', wk: 'assets/pieces/wk.svg',
+  bp: 'assets/pieces/bp.svg', bn: 'assets/pieces/bn.svg', bb: 'assets/pieces/bb.svg',
+  br: 'assets/pieces/br.svg', bq: 'assets/pieces/bq.svg', bk: 'assets/pieces/bk.svg',
+};
+
 const PIECE_SVG_URLS = {
   wp: 'https://upload.wikimedia.org/wikipedia/commons/4/45/Chess_plt45.svg',
   wn: 'https://upload.wikimedia.org/wikipedia/commons/7/70/Chess_nlt45.svg',
@@ -174,6 +181,7 @@ const THEMES = {
 };
 
 const PIECE_SETS = {
+  wiki:    PIECE_SVG_LOCAL, // Wikipedia-style classic pieces (default)
   modern:  PIECE_SVG_URLS,
   unicode: {
     wk:'♔', wq:'♕', wr:'♖', wb:'♗', wn:'♘', wp:'♙',
@@ -398,13 +406,15 @@ function renderBoard() {
         const pieceEl = document.createElement('div');
         pieceEl.className = `piece piece-${piece.color}`;
         
-        if (G.pieceSet === 'modern') {
+        const glyph = PIECE_SETS[G.pieceSet][piece.color + piece.type];
+        if (glyph && glyph.includes('.svg')) {
           const img = document.createElement('img');
-          img.src = PIECE_SVG_URLS[piece.color + piece.type];
+          img.src = glyph;
+          img.alt = piece.color + piece.type;
           img.className = 'piece-img';
           pieceEl.appendChild(img);
         } else {
-          pieceEl.textContent = PIECE_SETS[G.pieceSet][piece.color + piece.type];
+          pieceEl.textContent = glyph;
         }
         
         pieceEl.dataset.square = sq;
@@ -1759,8 +1769,7 @@ function onDragMove(e) {
 
 function onDragEnd(e) {
   if (!drag.active) return;
-
-    const el         = document.elementFromPoint(e.clientX, e.clientY);
+  const el         = document.elementFromPoint(e.clientX, e.clientY);
   const target     = el?.closest('[data-square]')?.dataset.square;
   const movedWasTrue = drag.moved;
   const sourceSq   = drag.sq; // must capture BEFORE cleanup, which nulls drag.sq
@@ -2591,7 +2600,7 @@ function init() {
 
   // Load settings from localStorage
   G.theme = localStorage.getItem('chessvibe_theme') || 'wiki';
-  G.pieceSet = localStorage.getItem('chessvibe_pieceSet') || 'unicode';
+  G.pieceSet = localStorage.getItem('chessvibe_pieceSet') || 'wiki';
   G.muted = localStorage.getItem('chessvibe_muted') === 'true';
   G.coords = localStorage.getItem('chessvibe_coords') !== 'false'; // default true
   G.lightMode = localStorage.getItem('chessvibe_light') === 'true';
@@ -2974,11 +2983,22 @@ function init() {
 
   // ── Fullscreen ─────────────────────────────────────
   document.getElementById('btn-fullscreen')?.addEventListener('click', () => {
+    const root = document.getElementById('game-screen');
     if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen();
+      (root || document.documentElement).requestFullscreen({ navigationUI: 'hide' }).catch(() => {
+        document.documentElement.requestFullscreen().catch(() => {});
+      });
     } else {
       document.exitFullscreen();
     }
+  });
+
+  // ── Fullscreen change: auto-fit the board & hide chrome ──
+  document.addEventListener('fullscreenchange', () => {
+    const isFs = !!document.fullscreenElement;
+    document.body.classList.toggle('fullscreen-mode', isFs);
+    const fsEl = document.getElementById('btn-fullscreen');
+    if (fsEl) fsEl.textContent = isFs ? '\u26F6' : '\u26F6';
   });
 
   // ── Coordinates Toggle ─────────────────────────────
