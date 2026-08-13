@@ -213,6 +213,7 @@ const G = {
   isHost:     false,
   onlineReady:false,
   isSpectator:false,  // true if user joined as spectator
+  moveCounter:0,      // authoritative online move sequence counter (host)
 
   /* Hint */
   hint: { active:false, from:null, to:null, timeout:null },
@@ -770,11 +771,18 @@ function executeMove(from, to, promotion) {
   // Evaluate move for automatic annotation
   evaluateMoveForAnnotation(G.game.history().length - 1);
 
-  // Online sync
-  if (G.mode === 'online' && G.conn && G.onlineReady) {
-    G.conn.send({ type:'move', from, to, promotion: promotion || null });
+  // Online sync — host assigns an authoritative sequence number so both
+  // clients can detect and repair out-of-order / missed moves.
+  if (G.mode === 'online' && G.onlineReady) {
+    G.moveCounter = (G.moveCounter || 0) + 1;
+    const payload = { type:'move', from, to, promotion: promotion || null, seq: G.moveCounter };
+    if (G.isHost && G.conn) {
+      G.conn.send(payload);
+    } else if (!G.isHost && G.conn) {
+      G.conn.send(payload);
+    }
     // Broadcast to spectators
-    broadcastToSpectators({ type:'move', from, to, promotion: promotion || null });
+    broadcastToSpectators(payload);
   }
 
   // Check game end
@@ -900,45 +908,6 @@ function showPromotionModal(color) {
     grid.appendChild(btn);
   });
   showModal('modal-promotion');
-}
-
-// ────────────────────────────────────────────────────
-//  CHESS960
-// ────────────────────────────────────────────────────
-function generateChess960() {
-  // Bishops on different colors
-  const bishops = [];
-  const lightSquares = [1,3,5,7];
-  const darkSquares = [0,2,4,6];
-  const bishopLight = lightSquares[Math.floor(Math.random() * lightSquares.length)];
-  let bishopDark = darkSquares[Math.floor(Math.random() * darkSquares.length)];
-  if (bishopDark === bishopLight) bishopDark = darkSquares[(darkSquares.indexOf(bishopDark) + 1) % darkSquares.length];
-  bishops.push(bishopLight, bishopDark);
-
-  // Queen
-  const remaining = [0,1,2,3,4,5,6,7].filter(i => !bishops.includes(i));
-  const queenPos = remaining[Math.floor(Math.random() * remaining.length)];
-
-  // Knights
-  const afterQueen = remaining.filter(i => i !== queenPos);
-  const knights = [];
-  for (let i = 0; i < 2; i++) {
-    const idx = Math.floor(Math.random() * afterQueen.length);
-    knights.push(afterQueen.splice(idx, 1)[0]);
-  }
-
-  // King and Rooks
-  const lastThree = afterQueen;
-  const backRank = Array(8).fill(null);
-  backRank[bishops[0]] = 'b';
-  backRank[bishops[1]] = 'b';
-  backRank[queenPos] = 'q';
-  knights.forEach(pos => backRank[pos] = 'n');
-  backRank[lastThree[0]] = 'r';
-  backRank[lastThree[1]] = 'k';
-  backRank[lastThree[2]] = 'r';
-
-  return backRank.map(p => p === 'k' ? 'K' : p === 'q' ? 'Q' : p === 'r' ? 'R' : p === 'b' ? 'B' : 'N').join('');
 }
 
 // ────────────────────────────────────────────────────
@@ -1790,21 +1759,20 @@ function onDragMove(e) {
 function onDragEnd(e) {
   if (!drag.active) return;
 
-  const el     = document.elementFromPoint(e.clientX, e.clientY);
-  const target = el?.closest('[data-square]')?.dataset.square;
-
+    const el         = document.elementFromPoint(e.clientX, e.clientY);
+  const target     = el?.closest('[data-square]')?.dataset.square;
   const movedWasTrue = drag.moved;
+  const sourceSq   = drag.sq; // must capture BEFORE cleanup, which nulls drag.sq
   dragCleanup();
-
-  if (movedWasTrue && target && drag.sq && target !== drag.sq) {
-    if (G.legalMoves.includes(target) || G.game.moves({ square: drag.sq, verbose: true }).some(m => m.to === target)) {
-      attemptMove(drag.sq, target);
+  if (movedWasTrue && target && sourceSq && target !== sourceSq) {
+    if (G.legalMoves.includes(target) || G.game.moves({ square: sourceSq, verbose: true }).some(m => m.to === target)) {
+      attemptMove(sourceSq, target);
     } else {
       renderBoard();
     }
-  } else if (!movedWasTrue) {
+  } else if (!movedWasTrue && sourceSq) {
     // Treat as click
-    handleSquareClick(drag.sq);
+    handleSquareClick(sourceSq);
   } else {
     renderBoard();
   }
@@ -1879,21 +1847,26 @@ function onTouchEnd(e) {
   const el     = document.elementFromPoint(touch.clientX, touch.clientY);
   const target = el?.closest('[data-square]')?.dataset.square;
 
+  // Preserve drag state BEFORE cleanup resets it
+  const movedWasTrue = drag.moved;
+  const sourceSq     = drag.sq;
   dragCleanup();
 
-  if (drag.moved && target && drag.sq && target !== drag.sq) {
-    if (G.selected !== drag.sq) {
+  if (movedWasTrue && target && sourceSq && target !== sourceSq) {
+    if (G.selected !== sourceSq) {
       G.selected = null; G.legalMoves = [];
-      trySelect(drag.sq);
+      trySelect(sourceSq);
     }
     if (G.legalMoves.includes(target)) {
-      attemptMove(drag.sq, target);
+      attemptMove(sourceSq, target);
     } else {
       clearSelection();
       renderBoard();
     }
-  } else if (!drag.moved && drag.sq) {
-    handleSquareClick(drag.sq);
+  } else if (!movedWasTrue && sourceSq) {
+    handleSquareClick(sourceSq);
+  } else {
+    renderBoard();
   }
 }
 
@@ -1959,39 +1932,63 @@ function initPeer(asHost, code, asSpectator = false) {
       G.conn = conn;
       wireConnection(conn);
 
+      let failed = false;
       conn.on('open', () => {
         conn.send({ type:'spectate', name: 'Spectator' });
         setOnlineStatus('spectate', '✓ Connected! Watching game…', 'ok');
       });
       conn.on('error', () => {
+        failed = true;
         setOnlineStatus('spectate', '✗ Room not found. Check code.', 'err');
       });
+      // Room doesn't exist / host offline → surface an error quickly
+      setTimeout(() => {
+        if (!failed && !G.onlineReady && G.spectators.length === 0 && G.isSpectator) {
+          setOnlineStatus('spectate', '✗ Room not found or empty. Check code.', 'err');
+        }
+      }, 12000);
     });
   } else if (asHost) {
     G.isHost      = true;
     G.isSpectator = false;
     G.playerColor = 'w';
+    G.moveCounter = 0; // authoritative move sequence counter
 
     G.peer.on('open', (id) => {
       setOnlineStatus('create', '⏳ Waiting for opponent to join…', '');
     });
 
+    // The VERY FIRST incoming data connection becomes the opponent. Any later
+    // connection is treated as a spectator. This gives both players a stable,
+    // deterministic role assignment.
+    let opponentSettled = false;
     G.peer.on('connection', (conn) => {
       conn.on('data', (data) => {
         if (data.type === 'spectate') {
-          // Add as spectator
+          // Already-identified spectator, or a new spectator after opponent
           G.spectators.push(conn);
-          setOnlineStatus('create', `✓ Opponent + ${G.spectators.length} spectator(s) connected`, 'ok');
-        } else {
-          // This is the main player connection
-          G.conn = conn;
-          wireConnection(conn);
-          conn.on('open', () => {
+          syncSpectatorCount();
+          setOnlineStatus('create', `✓ Waiting for opponent + ${G.spectators.length} spectator(s)`, 'ok');
+        } else if (data.type === 'join') {
+          // First 'join' message marks this connection as THE opponent
+          if (!opponentSettled) {
+            opponentSettled = true;
+            G.conn = conn;
+            wireConnection(conn);
             setOnlineStatus('create', '✓ Opponent connected! Starting…', 'ok');
-            conn.send({ type:'handshake', color:'b', hostReady: true });
-            setTimeout(() => startGame('online'), 600);
-          });
+            conn.send({ type:'handshake', color:'b' });
+            // Host starts the game immediately (we are White and ready now)
+            startGame('online');
+          } else {
+            // Duplicate join — this peer is a spectator
+            G.spectators.push(conn);
+            syncSpectatorCount();
+            conn.send({ type:'spectator-welcome' });
+          }
         }
+      });
+      conn.on('error', () => {
+        if (!opponentSettled) setOnlineStatus('create', '✗ Join failed. Try again.', 'err');
       });
     });
 
@@ -2005,12 +2002,21 @@ function initPeer(asHost, code, asSpectator = false) {
       G.conn = conn;
       wireConnection(conn);
 
+      let settled = false;
       conn.on('open', () => {
+        // Announce ourselves as the opponent joining the room
+        conn.send({ type:'join' });
         setOnlineStatus('join', '✓ Connected! Waiting for host…', 'ok');
       });
       conn.on('error', () => {
-        setOnlineStatus('join', '✗ Room not found. Check code.', 'err');
+        if (!settled) setOnlineStatus('join', '✗ Room not found. Check code.', 'err');
       });
+      // Give the peerjs negotiation some time, then report timeout
+      setTimeout(() => {
+        if (!G.onlineReady) {
+          setOnlineStatus('join', '✗ Room not found or empty. Check code.', 'err');
+        }
+      }, 12000);
     });
   }
 }
@@ -2036,6 +2042,15 @@ function broadcastToSpectators(data) {
   G.spectators.forEach(conn => {
     try { conn.send(data); } catch(e) {}
   });
+}
+
+function syncSpectatorCount() {
+  const el = document.getElementById('spectator-count');
+  const num = document.getElementById('spectator-num');
+  if (!el || !num) return;
+  el.classList.toggle('hidden', G.spectators.length === 0);
+  num.textContent = G.spectators.length;
+  broadcastToSpectators({ type: 'spectator-count', count: G.spectators.length });
 }
 
 function executeTakeback() {
@@ -2079,6 +2094,7 @@ function handleOnlineData(data) {
       G.playerColor = data.color;
       G.flipped     = data.color === 'b';
       G.onlineReady = true;
+      G.moveCounter = 0;
       setNavGameMode('Online — You are ' + (data.color === 'w' ? 'White ♔' : 'Black ♚'));
       hideModal('modal-online');
       startGame('online');
@@ -2091,6 +2107,55 @@ function handleOnlineData(data) {
         executeMove(data.from, data.to, data.promotion || null);
       } else if (G.game.turn() !== G.playerColor) {
         executeMove(data.from, data.to, data.promotion || null);
+      } else {
+        // Sequence mismatch: we moved but the opponent shows a different
+        // position — ask the host to re-sync so both boards stay identical.
+        if (G.isHost && G.conn) {
+          G.conn.send({ type:'sync-request' });
+        } else if (G.conn) {
+          G.conn.send({ type:'sync-request' });
+        }
+      }
+      break;
+
+    case 'sync-request':
+      // Host rebuilds the position from its PGN and sends it over so the
+      // requester can restore an identical board state.
+      if (G.isHost && G.game) {
+        G.conn?.send({ type:'sync-state', pgn: G.game.pgn(), moveCounter: G.moveCounter });
+      }
+      break;
+
+    case 'sync-state':
+      if (G.onlineReady && G.game && data.pgn) {
+        G.game = new Chess();
+        G.game.load_pgn(data.pgn);
+        G.moveCounter = data.moveCounter || 0;
+        const hist = G.game.history({ verbose: true });
+        const last = hist[hist.length - 1];
+        G.lastMove = last ? { from: last.from, to: last.to } : null;
+        G.selected = null; G.legalMoves = [];
+        renderBoard();
+        updateMoveHistory();
+        updateBreadcrumb();
+        checkGameOver();
+      }
+      break;
+
+    case 'spectator-welcome':
+      // We joined as a spectator despite clicking Join — adapt UI
+      G.isSpectator = true;
+      G.onlineReady = false;
+      if (G.conn) G.conn.send({ type:'spectate', name: 'Spectator' });
+      document.body.classList.add('spectator-mode');
+      showNotification('This room is full — watching as spectator.');
+      break;
+
+    case 'spectator-count':
+      { const num = document.getElementById('spectator-num');
+        const el = document.getElementById('spectator-count');
+        if (num) num.textContent = data.count || 0;
+        if (el) el.classList.toggle('hidden', !data.count);
       }
       break;
 
@@ -2102,27 +2167,29 @@ function handleOnlineData(data) {
       }
       break;
 
-    case 'resign': {
-      const winner = data.color === 'w' ? 'Black' : 'White';
-      showResultModal(`${winner} Wins`, 'by Resignation');
-      break;
-    }
     case 'draw-offer':
       if (G.isSpectator) return;
-      if (confirm('Opponent offers a draw. Accept?')) {
-        G.conn?.send({ type:'draw-accept' });
-        showResultModal('Draw', 'by Agreement');
-      } else {
-        G.conn?.send({ type:'draw-decline' });
-      }
+      // Use the shared draw modal (with a note that the offer is remote)
+      document.getElementById('draw-offer-title').textContent = 'Remote Draw Offer';
+      document.getElementById('draw-offer-message').textContent = 'Your opponent offers a draw — Accept or Decline?';
+      G.pendingRemoteDraw = true;
+      showModal('modal-local-draw');
       break;
 
     case 'draw-accept':
+      if (G.pendingRemoteDraw) {
+        G.pendingRemoteDraw = false;
+        hideModal('modal-local-draw');
+      }
       showResultModal('Draw', 'by Agreement');
       break;
 
     case 'draw-decline':
-      if (!G.isSpectator) alert('Draw offer declined.');
+      if (G.pendingRemoteDraw) {
+        G.pendingRemoteDraw = false;
+        hideModal('modal-local-draw');
+        showNotification('Opponent declined your draw offer.');
+      }
       break;
 
     case 'takeback-request':
@@ -2150,10 +2217,42 @@ function handleOnlineData(data) {
       showNotification('Rematch declined.');
       break;
 
+    case 'resign': {
+      const winner = data.color === 'w' ? 'Black' : 'White';
+      showResultModal(`${winner} Wins`, 'by Resignation');
+      break;
+    }
+
     case 'chat':
       appendChatMessage(data.name, data.text, false);
       break;
   }
+}
+
+function showNotification(msg) {
+  const existing = document.getElementById('toast-notification');
+  if (existing) existing.remove();
+  const toast = document.createElement('div');
+  toast.id = 'toast-notification';
+  toast.className = 'draw-notification';
+  toast.textContent = msg;
+  toast.style.cssText = `
+    position: fixed;
+    top: 70px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--panel, #1a1a1a);
+    border: 1px solid var(--border, #333);
+    border-radius: var(--radius, 12px);
+    padding: 10px 20px;
+    color: var(--text-dim, #aaa);
+    font-size: 0.9rem;
+    z-index: 2000;
+    animation: fade-in-out 2.5s ease forwards;
+    pointer-events: none;
+  `;
+  document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), 2500);
 }
 
 function setOnlineStatus(tab, msg, state) {
@@ -2206,13 +2305,7 @@ function startGame(mode) {
   document.getElementById('modal-overlay')?.classList.remove('active');
 
   document.querySelector('.board-frame')?.classList.remove('game-won');
-  if (G.chess960 && mode === 'local') {
-    const backRank = generateChess960();
-    const fen = `${backRank}/pppppppp/8/8/8/8/PPPPPPPP/${backRank.toLowerCase()} w KQkq - 0 1`;
-    G.game = new Chess(fen);
-  } else {
-    G.game = new Chess();
-  }
+  G.game = new Chess();
   G.mode       = mode;
   G.selected   = null;
   G.legalMoves = [];
@@ -2325,7 +2418,10 @@ function getSelectedTimer(mode) {
     'local-timer-select';
 
   const el = document.getElementById(id);
-  return el ? parseInt(el.value, 10) : 600;
+  // Online modal has no timer picker yet, so fall back to a sensible default.
+  if (!el) return 600;
+  const secs = parseInt(el.value, 10);
+  return isNaN(secs) ? 600 : secs;
 }
 
 function updatePlayerLabels() {
@@ -2571,9 +2667,6 @@ function init() {
         showModal('modal-bot');
       } else if (mode === 'online') {
         showModal('modal-online');
-      } else if (mode === 'chess960') {
-        showModal('modal-local-timer'); // Reuse for Chess960
-        G.chess960 = true;
       } else if (mode === 'gauntlet') {
         showModal('modal-gauntlet');
       }
@@ -2627,37 +2720,6 @@ function init() {
     G.autoQueen = document.getElementById('local-auto-queen').checked;
     hideModal('modal-local-timer');
     startGame('local');
-  });
-
-  // ── Local Draw Modal ───────────────────────────────
-  document.getElementById('btn-accept-draw')?.addEventListener('click', () => {
-    hideModal('modal-local-draw');
-    stopClock();
-    showResultModal('Draw', 'by Agreement');
-  });
-
-  document.getElementById('btn-decline-draw')?.addEventListener('click', () => {
-    hideModal('modal-local-draw');
-    // Show brief notification
-    const notification = document.createElement('div');
-    notification.className = 'draw-notification';
-    notification.textContent = 'Draw offer declined';
-    notification.style.cssText = `
-      position: fixed;
-      top: 70px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: var(--panel);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 8px 16px;
-      color: var(--text-dim);
-      font-size: 0.85rem;
-      z-index: 1000;
-      animation: fade-in-out 2s ease forwards;
-    `;
-    document.body.appendChild(notification);
-    setTimeout(() => notification.remove(), 2000);
   });
 
   // ── Bot Modal ─────────────────────────────────────
@@ -2811,11 +2873,14 @@ function init() {
   document.getElementById('btn-rematch')?.addEventListener('click', () => {
     hideModal('modal-result');
     document.querySelector('.board-frame')?.classList.remove('game-won');
-    if (G.mode === 'online') {
-      // Can't easily rematch online; just go to menu
-      cleanup();
-      showNavButtons(false);
-      showScreen('mode-screen');
+    if (G.mode === 'online' && G.conn) {
+      // Request a rematch from the opponent instead of abandoning
+      G.conn.send({ type: 'rematch-request' });
+      const btn = document.getElementById('btn-rematch');
+      if (btn) {
+        btn.textContent = 'Requesting…';
+        setTimeout(() => { btn.textContent = 'Rematch'; }, 4000);
+      }
     } else {
       const mode  = G.mode;
       const color = G.playerColor;
@@ -2845,37 +2910,28 @@ function init() {
     }
   });
 
-  // ── Local Draw Modal ───────────────────────────────
+  // ── Local Draw Modal (shared by local + remote offers) ──
   document.getElementById('btn-accept-draw')?.addEventListener('click', () => {
     hideModal('modal-local-draw');
+    if (G.pendingRemoteDraw) {
+      G.pendingRemoteDraw = false;
+      G.conn?.send({ type:'draw-accept' });
+    }
     stopClock();
     showResultModal('Draw', 'by Agreement');
   });
 
   document.getElementById('btn-decline-draw')?.addEventListener('click', () => {
     hideModal('modal-local-draw');
+    if (G.pendingRemoteDraw) {
+      G.pendingRemoteDraw = false;
+      G.conn?.send({ type:'draw-decline' });
+      showNotification('Draw offer declined');
+    } else {
+      showNotification('Draw offer declined');
+    }
     // Resume clock after decline
     if (G.timerOn) startClock();
-    // Show brief notification
-    const notification = document.createElement('div');
-    notification.className = 'draw-notification';
-    notification.textContent = 'Draw offer declined';
-    notification.style.cssText = `
-      position: fixed;
-      top: 70px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: var(--panel);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 8px 16px;
-      color: var(--text-dim);
-      font-size: 0.85rem;
-      z-index: 1000;
-      animation: fade-in-out 2s ease forwards;
-    `;
-    document.body.appendChild(notification);
-    setTimeout(() => notification.remove(), 2000);
   });
 
   // ── Resign Modal ───────────────────────────────────
@@ -2885,7 +2941,12 @@ function init() {
 
   document.getElementById('btn-confirm-resign')?.addEventListener('click', () => {
     hideModal('modal-resign-confirm');
-    const loser  = G.game.turn();
+    if (G.mode === 'online' && G.conn) {
+      // Announce our resignation to the opponent (they decide the winner
+      // banner based on our color; we mark the game over locally too).
+      G.conn.send({ type: 'resign', color: G.playerColor });
+    }
+    const loser  = G.mode === 'online' ? G.playerColor : G.game.turn();
     const winner = loser === 'w' ? 'Black' : 'White';
     stopClock();
     showResultModal(`${winner} Wins`, `${loser === 'w' ? 'White' : 'Black'} Resigned`);
@@ -2933,8 +2994,14 @@ function init() {
     if (G.mode === 'online' && G.conn && G.onlineReady) {
       G.conn.send({ type:'takeback-request' });
       const btn = document.getElementById('btn-takeback');
-      btn.textContent = 'Request Sent…';
-      btn.disabled = true;
+      if (btn) {
+        btn.textContent = 'Request Sent…';
+        btn.disabled = true;
+        setTimeout(() => {
+          btn.textContent = 'Takeback';
+          btn.disabled = false;
+        }, 6000);
+      }
     }
   });
   document.getElementById('btn-pause')?.addEventListener('click', togglePause);

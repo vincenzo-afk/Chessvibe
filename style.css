@@ -776,6 +776,43 @@ a { color: var(--accent); }
   100% { transform: scale(1); filter: brightness(1); }
 }
 
+/* ── GitHub Repo Button (navbar) ─────────────────── */
+.nav-btn-repo {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--border);
+  color: var(--text, #fff);
+  transition: background 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
+  white-space: nowrap;
+}
+.nav-btn-repo:hover {
+  background: rgba(255, 255, 255, 0.16);
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+
+/* ── GitHub Repo Link (mode screen) ──────────────── */
+.mode-github-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin: 18px auto 0;
+  padding: 10px 22px;
+  color: var(--text-dim);
+  font-size: 0.9rem;
+  text-decoration: none;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  transition: color 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+}
+.mode-github-link:hover {
+  color: #fff;
+  border-color: var(--accent);
+  background: rgba(255, 255, 255, 0.05);
+}
+
 .drag-ghost {
   position: fixed;
   width: 60px; height: 60px;
